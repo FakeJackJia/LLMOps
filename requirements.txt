@@ -1,0 +1,7 @@
+python-dotenv~=1.1.0
+injector~=0.22.0
+Flask~=3.1.1
+SQLAlchemy~=2.0.41
+pytest~=8.4.1
+WTForms~=3.2.1
+openai~=1.84.0
