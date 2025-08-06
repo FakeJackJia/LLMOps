@@ -1,0 +1,37 @@
+import os
+import weaviate
+from injector import inject
+from langchain_core.documents import Document
+from langchain_core.vectorstores import VectorStoreRetriever
+from langchain_weaviate import WeaviateVectorStore
+from weaviate import WeaviateClient
+from weaviate.auth import AuthApiKey
+from langchain_openai import OpenAIEmbeddings
+
+@inject
+class VectorDatabaseService:
+    """向量数据库服务"""
+    client: WeaviateClient
+    vector_store: WeaviateVectorStore
+
+    def __init__(self):
+        self.client = weaviate.connect_to_weaviate_cloud(
+            cluster_url=os.getenv("WEAVIATE_URL"),
+            auth_credentials=AuthApiKey(os.getenv("WEAVIATE_API_KEY"))
+        )
+
+        self.vector_store = WeaviateVectorStore(
+            client=self.client,
+            index_name="Dataset",
+            text_key="text",
+            embedding=OpenAIEmbeddings(model="text-embedding-3-small")
+        )
+
+    def get_retriever(self) -> VectorStoreRetriever:
+        """获取检索器"""
+        return self.vector_store.as_retriever()
+
+    @classmethod
+    def combine_documents(cls, documents: list[Document]) -> str:
+        """将对应的文档列表使用换行符进行合并"""
+        return "\n\n".join([document.page_content for document in documents])

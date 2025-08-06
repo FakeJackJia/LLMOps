@@ -3,7 +3,8 @@ from typing import Dict, Any
 from internal.schema import CompletionReq
 from pkg.response import success_json, validate_error_json, success_message
 from internal.exception import FailException
-from internal.service import AppService
+from internal.service import AppService, VectorDatabaseService
+from internal.core.tools.builtin_tools.providers import ProviderFactory
 
 from dataclasses import dataclass
 from injector import inject
@@ -25,6 +26,8 @@ from langchain_core.tracers import Run
 class AppHandler:
     """应用控制器"""
     app_service: AppService
+    vector_database_service: VectorDatabaseService
+    provider_factory: ProviderFactory
 
     def create_app(self):
         """调用服务创建的APP记录"""
@@ -76,8 +79,10 @@ class AppHandler:
             return validate_error_json(req.errors)
 
         # 2. 创建prompt与记忆
+        system_prompt = """你是一个强大的聊天机器人, 能根据对应的上下文和历史对话信息回复用户的提问. \n\n
+        <context>{context}</context>"""
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "你是一个强大的聊天机器人, 能根据用户的提问回复对应的问题"),
+            ("system", system_prompt),
             MessagesPlaceholder('history'),
             ("human", "{query}")
         ])
@@ -93,8 +98,10 @@ class AppHandler:
         llm = ChatOpenAI(model="gpt-3.5-turbo-16k")
 
         # 4. 创建链应用
+        retriever = self.vector_database_service.get_retriever() | self.vector_database_service.combine_documents
         chain = (RunnablePassthrough.assign(
-            history=RunnableLambda(self._load_memory_variables) | itemgetter('history')
+            history=RunnableLambda(self._load_memory_variables) | itemgetter('history'),
+            context=itemgetter("query") | retriever
         ) | prompt | llm | StrOutputParser()).with_listeners(on_end=self._save_context)
 
         # 5. 调用链得到结果
@@ -104,4 +111,8 @@ class AppHandler:
         return success_json({"content": content})
 
     def ping(self):
-        raise FailException("数据未找到")
+        google_serper = self.provider_factory.get_tool("google", "google_serper")()
+        print(google_serper)
+        print(google_serper.invoke("2024年马拉松的记录是多少"))
+        return success_json()
+        #raise FailException("数据未找到")

@@ -1,0 +1,4 @@
+name: google_serper
+label: 谷歌Serper搜索
+description: 一个低成本的谷歌搜索API, 当你需要回答有关实时问题时, 可以调用该工具, 该工具传递的参数是搜索查询语句
+params: []
