@@ -1,6 +1,6 @@
 import os, yaml
 from typing import Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from internal.lib.helper import dynamic_import
 from .tool_entity import ToolEntity
 
@@ -18,16 +18,13 @@ class Provider(BaseModel):
     name: str # 服务提供商的名字
     position: int # 服务提供商的顺序
     provider_entity: ProviderEntity # 服务提供商实体
-    tool_entity_map: dict[str, ToolEntity] = {} # 工具实体映射表
-    tool_func_map: dict[str, Any] = {} # 工具函数映射表
+    tool_entity_map: dict[str, ToolEntity] = Field(default_factory=dict) # 工具实体映射表
+    tool_func_map: dict[str, Any] = Field(default_factory=dict) # 工具函数映射表
 
     def __init__(self, **kwargs):
         """构造函数, 完成对应服务提供商的初始化"""
         super().__init__(**kwargs)
         self._provider_init()
-
-    class Config:
-        protected_namespaces = ()
 
     def get_tool(self, tool_name: str) -> Any:
         """根据工具的名字, 来获取到该服务商下的指定工具"""

@@ -111,8 +111,6 @@ class AppHandler:
         return success_json({"content": content})
 
     def ping(self):
-        google_serper = self.provider_factory.get_tool("google", "google_serper")()
-        print(google_serper)
-        print(google_serper.invoke("2024年马拉松的记录是多少"))
-        return success_json()
+        providers = self.provider_factory.get_provider_entities()
+        return success_json({"providers": [provider.dict() for provider in providers]})
         #raise FailException("数据未找到")
