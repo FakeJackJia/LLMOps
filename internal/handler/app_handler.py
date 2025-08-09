@@ -4,7 +4,6 @@ from internal.schema import CompletionReq
 from pkg.response import success_json, validate_error_json, success_message
 from internal.exception import FailException
 from internal.service import AppService, VectorDatabaseService
-from internal.core.tools.builtin_tools.providers import ProviderFactory
 
 from dataclasses import dataclass
 from injector import inject
@@ -27,7 +26,6 @@ class AppHandler:
     """应用控制器"""
     app_service: AppService
     vector_database_service: VectorDatabaseService
-    provider_factory: ProviderFactory
 
     def create_app(self):
         """调用服务创建的APP记录"""
@@ -111,6 +109,4 @@ class AppHandler:
         return success_json({"content": content})
 
     def ping(self):
-        providers = self.provider_factory.get_provider_entities()
-        return success_json({"providers": [provider.dict() for provider in providers]})
-        #raise FailException("数据未找到")
+        raise FailException("数据未找到")

@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Any
 from langchain_core.tools import BaseTool
 
-
 class CurrentTimeTool(BaseTool):
     """一个用于获取当前时间的工具"""
     name = "current_time"

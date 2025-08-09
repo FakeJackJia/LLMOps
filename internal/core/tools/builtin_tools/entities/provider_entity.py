@@ -12,6 +12,7 @@ class ProviderEntity(BaseModel):
     icon: str # 图片地址
     background: str # 图标的颜色
     category: str # 分类信息
+    created_at: int = 0 # 提供商的创建时间
 
 class Provider(BaseModel):
     """服务提供商, 在该类下, 可以获取到该服务提供商的所有工具、描述、图标等多个信息"""
