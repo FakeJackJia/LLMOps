@@ -3,7 +3,7 @@ from typing import Dict, Any
 from internal.schema import CompletionReq
 from pkg.response import success_json, validate_error_json, success_message
 from internal.exception import FailException
-from internal.service import AppService, VectorDatabaseService
+from internal.service import AppService, VectorDatabaseService, ApiToolService
 
 from dataclasses import dataclass
 from injector import inject
@@ -26,6 +26,7 @@ class AppHandler:
     """应用控制器"""
     app_service: AppService
     vector_database_service: VectorDatabaseService
+    api_tool_service: ApiToolService
 
     def create_app(self):
         """调用服务创建的APP记录"""
@@ -109,4 +110,5 @@ class AppHandler:
         return success_json({"content": content})
 
     def ping(self):
-        raise FailException("数据未找到")
+        return self.api_tool_service.api_tool_invoke()
+        #raise FailException("数据未找到")

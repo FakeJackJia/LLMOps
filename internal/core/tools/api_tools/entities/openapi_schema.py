@@ -9,6 +9,13 @@ class ParameterType(str, Enum):
     FLOAT: str = "float"
     BOOL: str = "bool"
 
+ParameterTypeMap = {
+    ParameterType.STR: str,
+    ParameterType.INT: int,
+    ParameterType.FLOAT: float,
+    ParameterType.BOOL: bool
+}
+
 class ParameterIn(str, Enum):
     """参数支持存放的位置"""
     PATH: str = "path"
