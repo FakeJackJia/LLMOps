@@ -1,3 +1,4 @@
+import logging
 import os
 from flask import Flask
 from flask_cors import CORS
@@ -5,6 +6,7 @@ from flask_migrate import Migrate
 from internal.router import Router
 from config import Config
 from internal.exception import CustomException
+from internal.extension import logging_extension
 from pkg.response import json, Response, HttpCode
 from pkg.sqlalchemy import SQLAlchemy
 from internal.model import App
@@ -29,9 +31,7 @@ class Http(Flask):
         # 初始化flask扩展
         db.init_app(self)
         migrate.init_app(self, db, directory="internal/migration")
-        # with self.app_context():
-        #     _ = App()
-        #     db.create_all()
+        logging_extension.init_app(self)
 
         # 解决前后端跨域问题
         CORS(self, resources={
@@ -44,12 +44,13 @@ class Http(Flask):
         })
 
     def _register_error_handler(self, error: Exception):
-        # 1.异常信息是不是我们的自定义异常, 如果是可以提取message和code等信息
+        logging.error("An error occurred: %s", error, exc_info=True)
+        # 异常信息是不是我们的自定义异常, 如果是可以提取message和code等信息
         if isinstance(error, CustomException):
             return json(Response(code=error.code, message=error.message,
                                  data=error.data if error.data else {}))
 
-        # 2.如果不是我们的自定义异常, 则有可能是程序、数据库抛出的异常
+        # 如果不是我们的自定义异常, 则有可能是程序、数据库抛出的异常
         if self.debug or os.getenv("FLASK_ENV") == 'development':
             raise error
         else:

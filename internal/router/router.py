@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from injector import inject
 from flask import Flask, Blueprint
-from internal.handler import AppHandler, BuiltinToolHandler, ApiToolHandler
+from internal.handler import AppHandler, BuiltinToolHandler, ApiToolHandler, UploadFileHandler
 
 @inject
 @dataclass
@@ -11,6 +11,7 @@ class Router:
     app_handler: AppHandler
     builtin_tool_handler: BuiltinToolHandler
     api_tool_handler: ApiToolHandler
+    upload_file_handler: UploadFileHandler
 
     def register_router(self, app: Flask):
         """注册路由"""
@@ -39,6 +40,11 @@ class Router:
         bp.add_url_rule("/api-tools/<uuid:provider_id>/delete", methods=["POST"], view_func=self.api_tool_handler.delete_api_tool_provider)
         bp.add_url_rule("/api-tools", view_func=self.api_tool_handler.get_api_tool_providers_with_page)
         bp.add_url_rule("/api-tools/<uuid:provider_id>", methods=["POST"], view_func=self.api_tool_handler.update_api_tool_provider)
+
+        # 上传文件模块
+        bp.add_url_rule("/upload-files/file", methods=["POST"], view_func=self.upload_file_handler.upload_file)
+        bp.add_url_rule("/upload-files/image", methods=["POST"], view_func=self.upload_file_handler.upload_image)
+
 
         # 在应用上去注册蓝图
         app.register_blueprint(bp)
