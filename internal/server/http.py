@@ -6,10 +6,9 @@ from flask_migrate import Migrate
 from internal.router import Router
 from config import Config
 from internal.exception import CustomException
-from internal.extension import logging_extension
+from internal.extension import logging_extension, redis_extension, celery_extension
 from pkg.response import json, Response, HttpCode
 from pkg.sqlalchemy import SQLAlchemy
-from internal.model import App
 
 class Http(Flask):
     """Http服务引擎"""
@@ -31,6 +30,8 @@ class Http(Flask):
         # 初始化flask扩展
         db.init_app(self)
         migrate.init_app(self, db, directory="internal/migration")
+        redis_extension.init_app(self)
+        celery_extension.init_app(self)
         logging_extension.init_app(self)
 
         # 解决前后端跨域问题

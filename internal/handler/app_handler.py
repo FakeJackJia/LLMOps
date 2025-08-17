@@ -1,9 +1,11 @@
+import uuid
 from typing import Dict, Any
 
 from internal.schema import CompletionReq
 from pkg.response import success_json, validate_error_json, success_message
 from internal.exception import FailException
 from internal.service import AppService, VectorDatabaseService, ApiToolService
+from internal.task.demo_task import demo_task
 
 from dataclasses import dataclass
 from injector import inject
@@ -110,5 +112,6 @@ class AppHandler:
         return success_json({"content": content})
 
     def ping(self):
+        demo_task.delay(uuid.uuid4())
         return self.api_tool_service.api_tool_invoke()
         #raise FailException("数据未找到")

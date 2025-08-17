@@ -2,7 +2,13 @@
 from dataclasses import dataclass
 from injector import inject
 from flask import Flask, Blueprint
-from internal.handler import AppHandler, BuiltinToolHandler, ApiToolHandler, UploadFileHandler
+from internal.handler import (
+    AppHandler,
+    BuiltinToolHandler,
+    ApiToolHandler,
+    UploadFileHandler,
+    DatasetHandler
+)
 
 @inject
 @dataclass
@@ -12,6 +18,7 @@ class Router:
     builtin_tool_handler: BuiltinToolHandler
     api_tool_handler: ApiToolHandler
     upload_file_handler: UploadFileHandler
+    dataset_handler: DatasetHandler
 
     def register_router(self, app: Flask):
         """注册路由"""
@@ -45,6 +52,11 @@ class Router:
         bp.add_url_rule("/upload-files/file", methods=["POST"], view_func=self.upload_file_handler.upload_file)
         bp.add_url_rule("/upload-files/image", methods=["POST"], view_func=self.upload_file_handler.upload_image)
 
+        # 知识库模块
+        bp.add_url_rule("/datasets", view_func=self.dataset_handler.get_datasets_with_page)
+        bp.add_url_rule("/datasets", methods=["POST"], view_func=self.dataset_handler.create_dataset)
+        bp.add_url_rule("/datasets/<uuid:dataset_id>", view_func=self.dataset_handler.get_dataset)
+        bp.add_url_rule("/datasets/<uuid:dataset_id>", methods=["POST"], view_func=self.dataset_handler.update_dataset)
 
         # 在应用上去注册蓝图
         app.register_blueprint(bp)
