@@ -6,13 +6,15 @@ from injector import inject
 from dataclasses import dataclass
 from .base_service import BaseService
 from pkg.sqlalchemy import SQLAlchemy
-from sqlalchemy import desc
-from internal.entity.dataset_entity import ProcessType
-from internal.model import Document, Dataset, UploadFile, ProcessRule
-from internal.exception import ForbiddenException, FailException
+from pkg.paginator import Paginator
+from sqlalchemy import desc, asc, func
+from internal.entity.dataset_entity import ProcessType, SegmentStatus
+from internal.model import Document, Dataset, UploadFile, ProcessRule, Segment
+from internal.exception import ForbiddenException, FailException, NotFoundException
 from internal.entity.upload_file_entity import ALLOWED_DOCUMENT_EXTENSION
 from internal.task.document_task import build_documents
-
+from internal.lib.helper import datetime_to_timestamp
+from internal.schema.document_schema import GetDocumentsWithPageReq
 
 @inject
 @dataclass
@@ -82,6 +84,110 @@ class DocumentService(BaseService):
         build_documents.delay([document.id for document in documents])
 
         return documents, batch
+
+    def get_documents_status(self, dataset_id: UUID, batch: str) -> list[dict]:
+        """根据传递的知识库id+处理批次获取文档列表状态"""
+        # todo: 等待授权认证模块完成进行切换调整
+        account_id = "aab6b349-5ca3-4753-bb21-2bbab7712a51"
+
+        dataset = self.get(Dataset, dataset_id)
+        if dataset is None or str(dataset.account_id) != account_id:
+            raise ForbiddenException("当前用户无该知识库权限或知识库不存在")
+
+        documents = self.db.session.query(Document).filter(
+            Document.dataset_id == dataset_id,
+            Document.batch == batch,
+        ).order_by(asc("position")).all()
+
+        if documents is None or len(documents) == 0:
+            raise NotFoundException("该处理批次未发现文档")
+
+        documents_status = []
+        for document in documents:
+            segment_count = self.db.session.query(func.count(Segment.id)).filter(
+                Segment.document_id == document.id
+            ).scalar()
+            completed_segment_count = self.db.session.query(func.count(Segment.id)).filter(
+                Segment.document_id == document.id,
+                Segment.status == SegmentStatus.COMPLETED
+            ).scalar()
+
+            upload_file = document.upload_file
+            documents_status.append({
+                "id": document.id,
+                "name": document.name,
+                "size": upload_file.size,
+                "extension": upload_file.extension,
+                "mime_type": upload_file.mime_type,
+                "position": document.position,
+                "segment_count": segment_count,
+                "completed_segment_count": completed_segment_count,
+                "error": document.error,
+                "status": document.status,
+                "processing_started_at": datetime_to_timestamp(document.processing_started_at),
+                "parsing_completed_at": datetime_to_timestamp(document.parsing_completed_at),
+                "splitting_completed_at": datetime_to_timestamp(document.splitting_completed_at),
+                "indexing_completed_at": datetime_to_timestamp(document.indexing_completed_at),
+                "completed_at": datetime_to_timestamp(document.completed_at),
+                "stopped_at": datetime_to_timestamp(document.stopped_at),
+                "created_at": datetime_to_timestamp(document.created_at)
+            })
+        return documents_status
+
+    def get_document(self, dataset_id: UUID, document_id: UUID) -> Document:
+        """根据传递的知识库id+文档id获取文档记录信息"""
+        # todo: 等待授权认证模块完成进行切换调整
+        account_id = "aab6b349-5ca3-4753-bb21-2bbab7712a51"
+
+        document = self.get(Document, document_id)
+        if document is None:
+            raise NotFoundException("该文档不存在")
+
+        if document.dataset_id != dataset_id or str(document.account_id) != account_id:
+            raise ForbiddenException("当前用户无权限获取该文档, 请核实后重试")
+
+        return document
+
+    def update_document(self, dataset_id: UUID, document_id: UUID, **kwargs) -> Document:
+        """根据传递的知识库id+文档id, 更新文档列表"""
+        # todo: 等待授权认证模块完成进行切换调整
+        account_id = "aab6b349-5ca3-4753-bb21-2bbab7712a51"
+
+        document = self.get(Document, document_id)
+        if document is None:
+            raise NotFoundException("该文档不存在")
+
+        if document.dataset_id != dataset_id or str(document.account_id) != account_id:
+            raise ForbiddenException("当前用户无权限修改该文档, 请核实后重试")
+
+        return self.update(document, **kwargs)
+
+    def get_documents_with_page(
+            self,
+            dataset_id: UUID,
+            req: GetDocumentsWithPageReq
+    ) -> tuple[list[Document], Paginator]:
+        """根据传递的知识库id+请求数据获取文档分页列表数据"""
+        # todo: 等待授权认证模块完成进行切换调整
+        account_id = "aab6b349-5ca3-4753-bb21-2bbab7712a51"
+
+        dataset = self.get(Dataset, dataset_id)
+        if dataset is None or str(dataset.account_id) != account_id:
+            raise NotFoundException("该知识库不存在或无权限")
+
+        paginator = Paginator(db=self.db, req=req)
+        filters = [
+            Document.account_id == account_id,
+            Document.dataset_id == dataset_id,
+        ]
+        if req.search_word.data:
+            filters.append(Document.name.ilike(f"%{req.search_word.data}%"))
+
+        documents = paginator.paginate(
+            self.db.session.query(Document).filter(*filters).order_by(desc("created_at"))
+        )
+        return documents, paginator
+
 
     def get_latest_document_position(self, dataset_id: UUID) -> int:
         """根据传递的知识库id获取最新的文档位置"""

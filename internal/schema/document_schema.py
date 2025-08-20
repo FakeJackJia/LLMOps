@@ -2,10 +2,12 @@ import uuid
 from flask_wtf import FlaskForm
 from .schema import ListField, DictField
 from wtforms import StringField
-from wtforms.validators import DataRequired, AnyOf, ValidationError
+from wtforms.validators import DataRequired, AnyOf, ValidationError, Length, Optional
 from internal.entity.dataset_entity import ProcessType, DEFAULT_PROCESS_RULE
 from internal.model import Document
+from internal.lib.helper import datetime_to_timestamp
 from marshmallow import Schema, fields, pre_dump
+from pkg.paginator import PaginatorReq
 
 class CreateDocumentReq(FlaskForm):
     """创建/新增文档列表请求"""
@@ -89,6 +91,19 @@ class CreateDocumentReq(FlaskForm):
                 }
             }
 
+class UpdateDocumentNameReq(FlaskForm):
+    """更新文档名称/基础信息请求"""
+    name = StringField("name", validators=[
+        DataRequired("文档名称不能为空"),
+        Length(max=100, message="文档名称长度不能超过100")
+    ])
+
+class GetDocumentsWithPageReq(PaginatorReq):
+    """获取文档分页列表请求"""
+    search_word = StringField("search_word", default="", validators=[
+        Optional()
+    ])
+
 class CreateDocumentResp(Schema):
     """创建文档列表响应结构"""
     documents = fields.List(fields.Dict, dump_default=[])
@@ -104,4 +119,68 @@ class CreateDocumentResp(Schema):
                 "created_at": int(document.created_at.timestamp())
             } for document in data[0]],
             "batch": data[1]
+        }
+
+class GetDocumentResp(Schema):
+    """获取文档基础信息响应结构"""
+    id = fields.UUID(dump_default="")
+    dataset_id = fields.UUID(dump_default="")
+    name = fields.String(dump_default="")
+    segment_count = fields.Integer(dump_default=0)
+    character_count = fields.Integer(dump_default=0)
+    hit_count = fields.Integer(dump_default=0)
+    position = fields.Integer(dump_default=0)
+    enabled = fields.Bool(dump_default=False)
+    disabled_at = fields.Integer(dump_default=0)
+    status = fields.String(dump_default="")
+    error = fields.String(dump_default="")
+    updated_at = fields.Integer(dump_default=0)
+    created_at = fields.Integer(dump_default=0)
+
+    @pre_dump
+    def process_data(self, data: Document, **kwargs):
+        return {
+            "id": data.id,
+            "dataset_id": data.dataset_id,
+            "name": data.name,
+            "segment_count": data.segment_count,
+            "character_count": data.character_count,
+            "hit_count": data.hit_count,
+            "position": data.position,
+            "enabled": data.enabled,
+            "disabled_at": datetime_to_timestamp(data.disabled_at),
+            "status": data.status,
+            "error": data.error,
+            "updated_at": datetime_to_timestamp(data.updated_at),
+            "created_at": datetime_to_timestamp(data.created_at)
+        }
+
+class GetDocumentsWithPageResp(Schema):
+    """获取文档分页列表响应结构"""
+    id = fields.UUID(dump_default="")
+    name = fields.String(dump_default="")
+    character_count = fields.Integer(dump_default=0)
+    hit_count = fields.Integer(dump_default=0)
+    position = fields.Integer(dump_default=0)
+    enabled = fields.Bool(dump_default=False)
+    disabled_at = fields.Integer(dump_default=0)
+    status = fields.String(dump_default="")
+    error = fields.String(dump_default="")
+    updated_at = fields.Integer(dump_default=0)
+    created_at = fields.Integer(dump_default=0)
+
+    @pre_dump
+    def process_data(self, data: Document, **kwargs):
+        return {
+            "id": data.id,
+            "name": data.name,
+            "character_count": data.character_count,
+            "hit_count": data.hit_count,
+            "position": data.position,
+            "enabled": data.enabled,
+            "disabled_at": datetime_to_timestamp(data.disabled_at),
+            "status": data.status,
+            "error": data.error,
+            "updated_at": datetime_to_timestamp(data.updated_at),
+            "created_at": datetime_to_timestamp(data.created_at)
         }

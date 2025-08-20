@@ -1,6 +1,7 @@
 from typing import Any
 import importlib
 from hashlib import sha256
+from datetime import datetime
 
 def dynamic_import(module_name: str, symbol_name: str) -> Any:
     """动态导入特定模块下的特地功能"""
@@ -19,3 +20,9 @@ def generate_text_hash(text: str) -> str:
     """根据传递的文本计算对应的哈希值"""
     text = str(text) + "None"
     return sha256(text.encode()).hexdigest()
+
+def datetime_to_timestamp(dt: datetime) -> int:
+    """将传入的datetime时间转换成时间戳, 如果数据不存在则返回0"""
+    if dt is None:
+        return 0
+    return int(dt.timestamp())

@@ -31,6 +31,10 @@ class DatasetHandler:
         content = self.file_extractor.load(upload_file, True)
         return success_json({"content": content})
 
+    def hit(self):
+        # todo: hit count
+        query = "关于Flask-SQLAlchemy的相关生成内容有哪些"
+
     def create_dataset(self):
         """创建知识库"""
         req = CreateDatasetReq()

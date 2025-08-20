@@ -3,8 +3,10 @@ from datetime import datetime
 import re
 import logging
 from uuid import UUID
+from flask import Flask, current_app
 from injector import inject
 from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
 from .base_service import BaseService
 from pkg.sqlalchemy import SQLAlchemy
 from internal.model import Document, Segment
@@ -17,6 +19,7 @@ from sqlalchemy import func
 from internal.lib.helper import generate_text_hash
 from .jieba_service import JiebaService
 from .keyword_table_service import KeywordTableService
+from .vector_database_service import VectorDatabaseService
 
 @inject
 @dataclass
@@ -28,6 +31,7 @@ class IndexService(BaseService):
     embedding_service: EmbeddingsService
     jieba_service: JiebaService
     keyword_table_service: KeywordTableService
+    vector_database_service: VectorDatabaseService
 
     def build_documents(self, document_ids: list[UUID]) -> None:
         """根据传递的文档id列表构建知识库文档, 涵盖了加载、分割、索引构建、数据库储存等"""
@@ -50,8 +54,7 @@ class IndexService(BaseService):
                 self._indexing(document, lc_segments)
 
                 # 存储操作, 涵盖了文档状态更新, 以及向量数据库的存储
-
-
+                self._completed(document, lc_segments)
 
             except Exception as e:
                 logging.exception(f"构建文档发生错误, 错误信息: {str(e)}")
@@ -74,7 +77,7 @@ class IndexService(BaseService):
             document,
             status=DocumentStatus.SPLITTING,
             parsing_completed_at=datetime.now(),
-            character_count=sum([len(lc_document) for lc_document in lc_documents]),
+            character_count=sum([len(lc_document.page_content) for lc_document in lc_documents]),
         )
 
         return lc_documents
@@ -150,7 +153,7 @@ class IndexService(BaseService):
 
             keyword_table_record = self.keyword_table_service.get_keyword_table_from_dataset_id(document.dataset_id)
             keyword_table = {
-                field: set(value) for field, value in keyword_table_record.keyword_table
+                field: set(value) for field, value in keyword_table_record.keyword_table.items()
             }
 
             for keyword in keywords:
@@ -160,12 +163,62 @@ class IndexService(BaseService):
 
             self.update(
                 keyword_table_record,
-                keyword_table={field: list(value) for field, value in keyword_table}
+                keyword_table={field: list(value) for field, value in keyword_table.items()}
             )
 
         self.update(
             document,
             indexing_completed_at=datetime.now()
+        )
+
+    def _completed(self, document: Document, lc_segments: list[LCDocument]) -> None:
+        """存储文档片段到向量数据库, 并完成状态更新"""
+        for lc_segment in lc_segments:
+            lc_segment.metadata["document_enabled"] = True
+            lc_segment.metadata["segment_enabled"] = True
+
+        # 每次向向量数据库存储10条数据, 避免一次传递过多数据
+        def thread_func(flask_app: Flask, chunks: list[LCDocument], ids: list[UUID]) -> None:
+            """线程函数, 执行向量数据库与postgre数据存储"""
+            with flask_app.app_context():
+                try:
+                    self.vector_database_service.vector_store.add_documents(chunks, ids=ids)
+                    with self.db.auto_commit():
+                        self.db.session.query(Segment).filter(
+                            Segment.node_id.in_(ids)
+                        ).update({
+                            "status": SegmentStatus.COMPLETED,
+                            "completed_at": datetime.now(),
+                            "enabled": True,
+                        })
+                except Exception as e:
+                    logging.exception(f"构建文档片段索引发生异常, 错误信息: {str(e)}")
+                    with self.db.auto_commit():
+                        self.db.session.query(Segment).filter(
+                            Segment.node_id.in_(ids)
+                        ).update({
+                            "status": SegmentStatus.ERROR,
+                            "completed_at": None,
+                            "stopped_at": datetime.now(),
+                            "enabled": False,
+                        })
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = []
+
+            for i in range(0, len(lc_segments), 10):
+                chunks = lc_segments[i:i+10]
+                ids = [chunk.metadata["node_id"] for chunk in chunks]
+                futures.append(executor.submit(thread_func, current_app._get_current_object(), chunks, ids))
+
+            for future in futures:
+                future.result()
+
+        self.update(
+            document,
+            status=DocumentStatus.COMPLETED,
+            completed_at=datetime.now(),
+            enabled=True,
         )
 
     @classmethod
