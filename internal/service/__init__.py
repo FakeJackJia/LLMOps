@@ -6,6 +6,12 @@ from .base_service import BaseService
 from .cos_service import CosService
 from .upload_file_service import UploadFileService
 from .dataset_service import DatasetService
+from .embeddings_service import EmbeddingsService
+from .jieba_service import JiebaService
+from .document_service import DocumentService
+from .indexing_service import IndexService
+from .process_rule_service import ProcessRuleService
+from .keyword_table_service import KeywordTableService
 
 __all__ = [
     'AppService',
@@ -15,5 +21,11 @@ __all__ = [
     'BaseService',
     'CosService',
     'UploadFileService',
-    'DatasetService'
+    'DatasetService',
+    'EmbeddingsService',
+    'JiebaService',
+    'DocumentService',
+    'IndexService',
+    'ProcessRuleService',
+    'KeywordTableService',
 ]

@@ -11,13 +11,25 @@ from internal.schema.dataset_schema import (
 from flask import request
 from pkg.response import validate_error_json, success_message, success_json
 from pkg.paginator import PageModel
-from internal.service import DatasetService
+from pkg.sqlalchemy import SQLAlchemy
+from internal.service import DatasetService, EmbeddingsService, JiebaService
+from internal.core.file_extractor import FileExtractor
+from internal.model import UploadFile
 
 @inject
 @dataclass
 class DatasetHandler:
     """知识库处理器"""
     dataset_service: DatasetService
+    embedding_service: EmbeddingsService
+    jieba_service: JiebaService
+    file_extractor: FileExtractor
+    db: SQLAlchemy
+
+    def embedding_query(self):
+        upload_file = self.db.session.query(UploadFile).get("b71e7122-267a-4f7d-a3c5-a5b2c3fd752f")
+        content = self.file_extractor.load(upload_file, True)
+        return success_json({"content": content})
 
     def create_dataset(self):
         """创建知识库"""

@@ -13,6 +13,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from .upload_file import UploadFile
 
 class Dataset(db.Model):
     """知识库表"""
@@ -108,6 +109,20 @@ class Document(db.Model):
         server_onupdate=text("CURRENT_TIMESTAMP(0)")
     )
     created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP(0)"))
+
+    @property
+    def upload_file(self) -> "UploadFile":
+        return self.db.session.query(UploadFile).filter(
+            UploadFile.id == self.upload_file_id,
+        ).one_or_none()
+
+    @property
+    def process_rule(self) -> "ProcessRule":
+        return db.session.query(ProcessRule).filter(
+            ProcessRule.id == self.process_rule_id,
+        ).one_or_none()
+
+
 
 class Segment(db.Model):
     """片段表"""

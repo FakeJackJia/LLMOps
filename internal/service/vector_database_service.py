@@ -6,15 +6,17 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_weaviate import WeaviateVectorStore
 from weaviate import WeaviateClient
 from weaviate.auth import AuthApiKey
-from langchain_openai import OpenAIEmbeddings
+from .embeddings_service import EmbeddingsService
 
 @inject
 class VectorDatabaseService:
     """向量数据库服务"""
     client: WeaviateClient
     vector_store: WeaviateVectorStore
+    embeddings_service: EmbeddingsService
 
-    def __init__(self):
+    def __init__(self, embeddings_service: EmbeddingsService):
+        self.embeddings_service = embeddings_service
         self.client = weaviate.connect_to_weaviate_cloud(
             cluster_url=os.getenv("WEAVIATE_URL"),
             auth_credentials=AuthApiKey(os.getenv("WEAVIATE_API_KEY"))
@@ -24,7 +26,7 @@ class VectorDatabaseService:
             client=self.client,
             index_name="Dataset",
             text_key="text",
-            embedding=OpenAIEmbeddings(model="text-embedding-3-small")
+            embedding=self.embeddings_service.embeddings,
         )
 
     def get_retriever(self) -> VectorStoreRetriever:

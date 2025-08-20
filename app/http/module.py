@@ -1,3 +1,4 @@
+from injector import Injector
 from injector import Binder, Module
 from pkg.sqlalchemy import SQLAlchemy
 from internal.extension.database_extension import db
@@ -12,3 +13,6 @@ class ExtensionModule(Module):
         binder.bind(SQLAlchemy, to=db)
         binder.bind(Migrate, to=migrate)
         binder.bind(Redis, to=redis_client)
+
+
+injector = Injector([ExtensionModule])
