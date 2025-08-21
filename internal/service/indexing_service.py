@@ -13,6 +13,11 @@ from internal.model import Document, Segment
 from internal.entity.dataset_entity import DocumentStatus, SegmentStatus
 from langchain_core.documents import Document as LCDocument
 from internal.core.file_extractor import FileExtractor
+from internal.entity.cache_entity import (
+    LOCK_DOCUMENT_UPDATED_ENABLED,
+    LOCK_KEYWORD_TABLE_UPDATE_KEYWORD_TABLE,
+    LOCK_EXPIRE_TIME
+)
 from .process_rule_service import ProcessRuleService
 from .embeddings_service import EmbeddingsService
 from sqlalchemy import func
@@ -20,6 +25,8 @@ from internal.lib.helper import generate_text_hash
 from .jieba_service import JiebaService
 from .keyword_table_service import KeywordTableService
 from .vector_database_service import VectorDatabaseService
+from weaviate.classes.query import Filter
+from redis import Redis
 
 @inject
 @dataclass
@@ -32,6 +39,7 @@ class IndexService(BaseService):
     jieba_service: JiebaService
     keyword_table_service: KeywordTableService
     vector_database_service: VectorDatabaseService
+    redis_client: Redis
 
     def build_documents(self, document_ids: list[UUID]) -> None:
         """根据传递的文档id列表构建知识库文档, 涵盖了加载、分割、索引构建、数据库储存等"""
@@ -64,6 +72,76 @@ class IndexService(BaseService):
                     error=str(e),
                     stopped_at=datetime.now()
                 )
+
+    def update_document_enabled(self, document_id: UUID) -> None:
+        """根据传递的文档id更新文档状态, 同时修改weaviate向量数据库中的记录"""
+        cached_key = LOCK_DOCUMENT_UPDATED_ENABLED.format(document_id=document_id)
+
+        document = self.get(Document, document_id)
+
+        node_ids = [
+            node_id for node_id, in self.db.session.query(Segment).with_entities(Segment.node_id).filter(
+                Segment.document_id == document_id,
+            ).all()
+        ]
+
+        try:
+            collection = self.vector_database_service.collection
+            for node_id in node_ids:
+                collection.data.update(
+                    uuid=node_id,
+                    properties={
+                        "document_enabled": document.enabled,
+                    }
+                )
+
+        except Exception as e:
+            logging.exception(f"修改向量数据库文档启用失败 文档id: {document.id}")
+            origin_enabled = not document.enabled
+            self.update(
+                document,
+                enabled=origin_enabled,
+                disabled_at=None if origin_enabled else datetime.now(),
+            )
+        finally:
+            self.redis_client.delete(cached_key)
+
+    def delete_document(self, dataset_id: UUID, document_id: UUID) -> None:
+        """根据传递的文档id+知识库id清除文档信息"""
+        segment_ids = [
+            str(id) for id, in self.db.session.query(Segment).with_entities(Segment.id).filter(
+                Segment.document_id == document_id,
+            ).all()
+        ]
+
+        collection = self.vector_database_service.collection
+        collection.data.delete_many(
+            where=Filter.by_property("document_id").equal(document_id),
+        )
+
+        with self.db.auto_commit():
+            self.db.session.query(Segment).filter(
+                Segment.document_id == document_id,
+            ).delete()
+
+        segment_ids_to_delete = set(segment_ids)
+        keywords_to_delete = set()
+
+        cache_key = LOCK_KEYWORD_TABLE_UPDATE_KEYWORD_TABLE.format(dataset_id=dataset_id)
+        with self.redis_client.lock(cache_key, timeout=LOCK_EXPIRE_TIME):
+            keyword_table_record = self.keyword_table_service.get_keyword_table_from_dataset_id(dataset_id)
+            keyword_table = keyword_table_record.keyword_table.copy()
+
+            for keyword, ids in keyword_table.items():
+                ids_set = set(ids)
+                if segment_ids_to_delete.intersection(ids_set):
+                    keyword_table[keyword] = list(ids_set.difference(segment_ids_to_delete))
+                    if not keyword_table[keyword]:
+                        keywords_to_delete.add(keyword)
+            for keyword in keywords_to_delete:
+                del keyword_table[keyword]
+
+            self.update(keyword_table_record, keyword_table=keyword_table)
 
     def _parsing(self, document: Document) -> list[LCDocument]:
         """解析传递的文档为langchain文档列表"""

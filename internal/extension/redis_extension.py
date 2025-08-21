@@ -19,7 +19,7 @@ def init_app(app: Flask):
         "db": app.config.get("REDIS_DB", 0),
         "encoding": "utf-8",
         "encoding_errors": "strict",
-        "decode_response": False
+        "decode_responses": False
     }, connection_class=connection_class)
 
     app.extensions["redis"] = redis_client

@@ -1,7 +1,7 @@
 import uuid
 from flask_wtf import FlaskForm
 from .schema import ListField, DictField
-from wtforms import StringField
+from wtforms import StringField, BooleanField
 from wtforms.validators import DataRequired, AnyOf, ValidationError, Length, Optional
 from internal.entity.dataset_entity import ProcessType, DEFAULT_PROCESS_RULE
 from internal.model import Document
@@ -103,6 +103,16 @@ class GetDocumentsWithPageReq(PaginatorReq):
     search_word = StringField("search_word", default="", validators=[
         Optional()
     ])
+
+class UpdateDocumentEnabledReq(FlaskForm):
+    """更新文档启用状态请求"""
+    enabled = BooleanField("enabled")
+
+    def validate_enabled(self, field: BooleanField) -> None:
+        """校验文档启用状态enabled"""
+        if not isinstance(field.data, bool):
+            raise ValidationError("enabled状态不能为空且必须是布尔值")
+
 
 class CreateDocumentResp(Schema):
     """创建文档列表响应结构"""

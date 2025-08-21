@@ -1,6 +1,7 @@
 import logging
 import random
 import time
+from datetime import datetime
 from uuid import UUID
 from injector import inject
 from dataclasses import dataclass
@@ -8,19 +9,22 @@ from .base_service import BaseService
 from pkg.sqlalchemy import SQLAlchemy
 from pkg.paginator import Paginator
 from sqlalchemy import desc, asc, func
-from internal.entity.dataset_entity import ProcessType, SegmentStatus
+from internal.entity.dataset_entity import ProcessType, SegmentStatus, DocumentStatus
 from internal.model import Document, Dataset, UploadFile, ProcessRule, Segment
 from internal.exception import ForbiddenException, FailException, NotFoundException
 from internal.entity.upload_file_entity import ALLOWED_DOCUMENT_EXTENSION
-from internal.task.document_task import build_documents
+from internal.entity.cache_entity import LOCK_EXPIRE_TIME, LOCK_DOCUMENT_UPDATED_ENABLED
+from internal.task.document_task import build_documents, update_document_enabled, delete_document
 from internal.lib.helper import datetime_to_timestamp
 from internal.schema.document_schema import GetDocumentsWithPageReq
+from redis import Redis
 
 @inject
 @dataclass
 class DocumentService(BaseService):
     """文档服务"""
     db: SQLAlchemy
+    redis_client: Redis
 
     def create_documents(
             self,
@@ -161,6 +165,65 @@ class DocumentService(BaseService):
             raise ForbiddenException("当前用户无权限修改该文档, 请核实后重试")
 
         return self.update(document, **kwargs)
+
+    def update_document_enabled(self, dataset_id: UUID, document_id: UUID, enabled: bool) -> Document:
+        """根据传递的知识库id+文档id, 更新文档启用状态, 同时会异步更新weaviate向量数据库中的数据"""
+        # todo: 等待授权认证模块完成进行切换调整
+        account_id = "aab6b349-5ca3-4753-bb21-2bbab7712a51"
+
+        document = self.get(Document, document_id)
+        if document is None:
+            raise NotFoundException("该文档不存在")
+
+        if document.dataset_id != dataset_id or str(document.account_id) != account_id:
+            raise ForbiddenException("当前用户无权限修改该文档, 请核实后重试")
+
+        if document.status != DocumentStatus.COMPLETED:
+            raise ForbiddenException("当前文档处于不可修改状态, 请稍后重试")
+
+        if document.enabled == enabled:
+            raise FailException("文档状态修改错误")
+
+        cached_key = LOCK_DOCUMENT_UPDATED_ENABLED.format(document_id=document.id)
+        cached_result = self.redis_client.get(cached_key)
+        if cached_result is not None:
+            raise FailException("当前文档正在修改启用状态, 请稍后")
+
+        # 设置缓存键, 缓存时间为600s
+        self.update(
+            document,
+            enabled=enabled,
+            disabled_at=None if enabled else datetime.now(),
+        )
+
+        self.redis_client.setex(cached_key, LOCK_EXPIRE_TIME, 1)
+
+        # 启用异步任务
+        update_document_enabled.delay(document.id)
+
+        return document
+
+    def delete_document(self, dataset_id: UUID, document_id: UUID) -> Document:
+        """根据传递的知识库id+文档id删除指定的文档信息, 包含文档片段删除、关键词表更新、weaviate向量数据库中的数据删除"""
+        # todo: 等待授权认证模块完成进行切换调整
+        account_id = "aab6b349-5ca3-4753-bb21-2bbab7712a51"
+
+        document = self.get(Document, document_id)
+        if document is None:
+            raise NotFoundException("该文档不存在")
+
+        if document.dataset_id != dataset_id or str(document.account_id) != account_id:
+            raise ForbiddenException("当前用户无权限修改该文档, 请核实后重试")
+
+        if document.status not in [DocumentStatus.COMPLETED, DocumentStatus.ERROR]:
+            raise ForbiddenException("当前文档处于不可修改状态, 请稍后重试")
+
+        self.delete(document)
+
+        # 调用异步任务
+        delete_document.delay(dataset_id, document_id)
+
+        return document
 
     def get_documents_with_page(
             self,
