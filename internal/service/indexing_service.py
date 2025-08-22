@@ -79,21 +79,41 @@ class IndexService(BaseService):
 
         document = self.get(Document, document_id)
 
-        node_ids = [
-            node_id for node_id, in self.db.session.query(Segment).with_entities(Segment.node_id).filter(
-                Segment.document_id == document_id,
-            ).all()
-        ]
+        segments = self.db.session.query(Segment).with_entities(Segment.id, Segment.node_id, Segment.enabled).filter(
+            Segment.document_id == document_id,
+            Segment.status == SegmentStatus.COMPLETED,
+        ).all()
+
+        segment_ids = [id for id, _, _ in segments]
+        node_ids = [node_id for _, node_id, _ in segments]
 
         try:
             collection = self.vector_database_service.collection
             for node_id in node_ids:
-                collection.data.update(
-                    uuid=node_id,
-                    properties={
-                        "document_enabled": document.enabled,
-                    }
-                )
+                try:
+                    collection.data.update(
+                        uuid=node_id,
+                        properties={
+                            "document_enabled": document.enabled,
+                        }
+                    )
+                except Exception as e:
+                    with self.db.auto_commit():
+                        self.db.session.query(Segment).filter(
+                            Segment.node_id == node_id,
+                        ).update({
+                            "error": str(e),
+                            "status": SegmentStatus.ERROR,
+                            "enabled": False,
+                            "disabled_at": datetime.now(),
+                            "stopped_at": datetime.now()
+                        })
+
+            if document.enabled:
+                enabled_segment_ids = [id for id, _, enabled in segments if enabled]
+                self.keyword_table_service.add_keyword_table_from_ids(document.dataset_id, enabled_segment_ids)
+            else:
+                self.keyword_table_service.delete_keyword_table_from_ids(document.dataset_id, segment_ids)
 
         except Exception as e:
             logging.exception(f"修改向量数据库文档启用失败 文档id: {document.id}")
@@ -109,7 +129,7 @@ class IndexService(BaseService):
     def delete_document(self, dataset_id: UUID, document_id: UUID) -> None:
         """根据传递的文档id+知识库id清除文档信息"""
         segment_ids = [
-            str(id) for id, in self.db.session.query(Segment).with_entities(Segment.id).filter(
+            id for id, in self.db.session.query(Segment).with_entities(Segment.id).filter(
                 Segment.document_id == document_id,
             ).all()
         ]
@@ -124,24 +144,7 @@ class IndexService(BaseService):
                 Segment.document_id == document_id,
             ).delete()
 
-        segment_ids_to_delete = set(segment_ids)
-        keywords_to_delete = set()
-
-        cache_key = LOCK_KEYWORD_TABLE_UPDATE_KEYWORD_TABLE.format(dataset_id=dataset_id)
-        with self.redis_client.lock(cache_key, timeout=LOCK_EXPIRE_TIME):
-            keyword_table_record = self.keyword_table_service.get_keyword_table_from_dataset_id(dataset_id)
-            keyword_table = keyword_table_record.keyword_table.copy()
-
-            for keyword, ids in keyword_table.items():
-                ids_set = set(ids)
-                if segment_ids_to_delete.intersection(ids_set):
-                    keyword_table[keyword] = list(ids_set.difference(segment_ids_to_delete))
-                    if not keyword_table[keyword]:
-                        keywords_to_delete.add(keyword)
-            for keyword in keywords_to_delete:
-                del keyword_table[keyword]
-
-            self.update(keyword_table_record, keyword_table=keyword_table)
+        self.keyword_table_service.delete_keyword_table_from_ids(dataset_id, segment_ids)
 
     def _parsing(self, document: Document) -> list[LCDocument]:
         """解析传递的文档为langchain文档列表"""

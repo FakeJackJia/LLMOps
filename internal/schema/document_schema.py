@@ -113,7 +113,6 @@ class UpdateDocumentEnabledReq(FlaskForm):
         if not isinstance(field.data, bool):
             raise ValidationError("enabled状态不能为空且必须是布尔值")
 
-
 class CreateDocumentResp(Schema):
     """创建文档列表响应结构"""
     documents = fields.List(fields.Dict, dump_default=[])
