@@ -169,6 +169,10 @@ class Segment(db.Model):
     )
     created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP(0)"))
 
+    @property
+    def document(self) -> "Document":
+        return db.session.query(Document).get(self.document_id)
+
 class KeywordTable(db.Model):
     """关键词表"""
     __tablename__ = "keyword_table"
