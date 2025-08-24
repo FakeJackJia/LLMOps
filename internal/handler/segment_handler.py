@@ -39,7 +39,6 @@ class SegmentHandler:
         resp = GetSegmentsWithPageResp(many=True)
         return success_json(PageModel(list=resp.dump(segments), paginator=paginator))
 
-
     def get_segment(self, dataset_id: UUID, document_id: UUID, segment_id: UUID):
         """获取指定的文档片段信息"""
         segment = self.segment_service.get_segment(dataset_id, document_id, segment_id)

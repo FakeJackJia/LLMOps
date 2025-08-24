@@ -73,6 +73,8 @@ class Router:
         bp.add_url_rule("/datasets/<uuid:dataset_id>/documents/<uuid:document_id>/segments/<uuid:segment_id>", view_func=self.segment_handler.get_segment)
         bp.add_url_rule("/datasets/<uuid:dataset_id>/documents/<uuid:document_id>/segments/<uuid:segment_id>/enabled", methods=["POST"], view_func=self.segment_handler.update_segment_enabled)
         bp.add_url_rule("/datasets/<uuid:dataset_id>/documents/<uuid:document_id>/segments", methods=["POST"], view_func=self.segment_handler.create_segment)
+        bp.add_url_rule("/datasets/<uuid:dataset_id>/hit", methods=["POST"], view_func=self.dataset_handler.hit)
+        bp.add_url_rule("/datasets/<uuid:dataset_id>/queries", view_func=self.dataset_handler.get_dataset_queries)
 
         # 在应用上去注册蓝图
         app.register_blueprint(bp)

@@ -7,6 +7,8 @@ from internal.schema.dataset_schema import (
     UpdateDatasetReq,
     GetDatasetWithPageReq,
     GetDatasetWithPageResp,
+    HitReq,
+    GetDatasetQueriesResp,
 )
 from flask import request
 from pkg.response import validate_error_json, success_message, success_json
@@ -31,9 +33,21 @@ class DatasetHandler:
         content = self.file_extractor.load(upload_file, True)
         return success_json({"content": content})
 
-    def hit(self):
-        # todo: hit count
-        query = "关于Flask-SQLAlchemy的相关生成内容有哪些"
+    def hit(self, dataset_id: UUID):
+        """根据传递的知识库id+检索参数执行召回测试"""
+        req = HitReq()
+        if not req.validate():
+            return validate_error_json(req.errors)
+
+        hit_result = self.dataset_service.hit(dataset_id, req)
+        return success_json(hit_result)
+
+    def get_dataset_queries(self, dataset_id: UUID):
+        """根据传递的知识库id获取最近的10条查询记录"""
+        dataset_queries = self.dataset_service.get_dataset_queries(dataset_id)
+
+        resp = GetDatasetQueriesResp(many=True)
+        return success_json(resp.dump(dataset_queries))
 
     def create_dataset(self):
         """创建知识库"""
