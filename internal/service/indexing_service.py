@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 from .base_service import BaseService
 from pkg.sqlalchemy import SQLAlchemy
-from internal.model import Document, Segment
+from internal.model import Document, Segment, KeywordTable, DatasetQuery, ProcessRule
 from internal.entity.dataset_entity import DocumentStatus, SegmentStatus
 from langchain_core.documents import Document as LCDocument
 from internal.core.file_extractor import FileExtractor
@@ -145,6 +145,37 @@ class IndexService(BaseService):
             ).delete()
 
         self.keyword_table_service.delete_keyword_table_from_ids(dataset_id, segment_ids)
+
+    def delete_dataset(self, dataset_id: UUID) -> None:
+        """根据传递的知识库id执行删除"""
+        try:
+            with self.db.auto_commit():
+                self.db.session.query(Document).filter(
+                    Document.dataset_id == dataset_id,
+                ).delete()
+
+                self.db.session.query(Segment).filter(
+                    Segment.dataset_id == dataset_id,
+                ).delete()
+
+                self.db.session.query(KeywordTable).filter(
+                    KeywordTable.dataset_id == dataset_id,
+                ).delete()
+
+                self.db.session.query(DatasetQuery).filter(
+                    DatasetQuery.dataset_id == dataset_id,
+                ).delete()
+
+                self.db.session.query(ProcessRule).filter(
+                    ProcessRule.dataset_id == dataset_id,
+                ).delete()
+
+            self.vector_database_service.collection.data.delete_many(
+                where=Filter.by_property("dataset_id").equal(str(dataset_id))
+            )
+
+        except Exception as e:
+            logging.exception("异步删除知识库错误")
 
     def _parsing(self, document: Document) -> list[LCDocument]:
         """解析传递的文档为langchain文档列表"""

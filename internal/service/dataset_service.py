@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 from injector import inject
 from dataclasses import dataclass
@@ -10,8 +11,9 @@ from internal.schema.dataset_schema import (
     GetDatasetWithPageReq,
     HitReq,
 )
-from internal.model import Dataset, Segment, DatasetQuery
-from internal.exception import ValidateErrorException, NotFoundException
+from internal.task.dataset_task import delete_dataset
+from internal.model import Dataset, Segment, DatasetQuery, AppDatasetJoin
+from internal.exception import ValidateErrorException, NotFoundException, FailException
 from internal.entity.dataset_entity import DEFAULT_DATASET_DESCRIPTION_FORMATTER
 from internal.lib.helper import datetime_to_timestamp
 from pkg.paginator import Paginator
@@ -168,3 +170,26 @@ class DatasetService(BaseService):
         ).order_by(desc("created_at")).limit(10).all()
 
         return dataset_queries
+
+    def delete_dataset(self, dataset_id: UUID) -> Dataset:
+        """根据传递的信息删除指定知识库"""
+        # todo: 等待授权认证模块完成进行切换调整
+        account_id = "aab6b349-5ca3-4753-bb21-2bbab7712a51"
+
+        dataset = self.get(Dataset, dataset_id)
+        if dataset is None or str(dataset.account_id) != account_id:
+            raise NotFoundException("该知识库不存在")
+
+        try:
+            self.delete(dataset)
+            with self.db.auto_commit():
+                self.db.session.query(AppDatasetJoin).filter(
+                    AppDatasetJoin.dataset_id == dataset_id,
+                ).delete()
+
+             # 异步
+            delete_dataset.delay(dataset_id)
+
+        except Exception as e:
+            logging.exception("删除知识库失败")
+            raise FailException("删除知识库失败")

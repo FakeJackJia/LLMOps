@@ -11,6 +11,7 @@ from pkg.paginator import Paginator
 from internal.schema.segment_schema import (
     GetSegmentsWithPageReq,
     CreateSegmentReq,
+    UpdateSegmentReq,
 )
 from internal.model import Segment, Document
 from internal.entity.cache_entity import LOCK_SEGMENT_UPDATE_ENABLED, LOCK_EXPIRE_TIME
@@ -102,7 +103,7 @@ class SegmentService(BaseService):
             ).first()
 
             self.update(
-                Document,
+                document,
                 character_count=document_character_count,
                 token_count=document_token_count,
             )
@@ -124,6 +125,74 @@ class SegmentService(BaseService):
                 )
 
             raise FailException("新增文档片段失败")
+
+
+    def update_segment(self, dataset_id: UUID, document_id: UUID, segment_id: UUID, req: UpdateSegmentReq) -> Segment:
+        """根据传递的信息更新文档片段"""
+        # todo: 等待授权认证模块完成进行切换调整
+        account_id = "aab6b349-5ca3-4753-bb21-2bbab7712a51"
+
+        segment = self.get(Segment, segment_id)
+        if (
+                segment is None
+                or segment.dataset_id != dataset_id
+                or str(segment.account_id) != account_id
+                or segment.document_id != document_id
+        ):
+            raise NotFoundException("该知识库文档片段不存在或无权限")
+
+        if segment.status != SegmentStatus.COMPLETED:
+            raise FailException("当前片段不可修改状态")
+
+        token_count = self.embedding_service.calculate_token_count(req.content.data)
+        if token_count > 1000:
+            raise ValidateErrorException("片段的内容长度不能超过1000token")
+
+        if req.keywords.data is None or len(req.keywords.data) == 0:
+            req.keywords.data = self.jieba_service.extract_keywords(req.content.data, 10)
+
+        new_hash = generate_text_hash(req.content.data)
+        required_update = segment.hash != new_hash
+
+        try:
+            self.update(
+                segment,
+                content=req.content.data,
+                character_count=len(req.content.data),
+                token_count=token_count,
+                keywords=req.keywords.data,
+                hash=new_hash,
+            )
+
+            self.keyword_table_service.delete_keyword_table_from_ids(dataset_id, [segment_id])
+            self.keyword_table_service.add_keyword_table_from_ids(dataset_id, [segment_id])
+
+            if required_update:
+                document = segment.document
+
+                document_character_count, document_token_count = self.db.session.query(
+                    func.coalesce(func.sum(Segment.character_count), 0),
+                    func.coalesce(func.sum(Segment.token_count), 0)
+                ).filter(
+                    Segment.document_id == document_id,
+                ).first()
+
+                self.update(
+                    document,
+                    character_count=document_character_count,
+                    token_count=document_token_count,
+                )
+
+                self.vector_base_service.collection.data.update(
+                    uuid=str(segment.node_id),
+                    properties={
+                        "text": req.content.data,
+                    },
+                    vector=self.embedding_service.embeddings.embed_query(req.content.data)
+                )
+        except Exception as e:
+            logging.exception("更新文档片段异常")
+            raise FailException("更新文档片段失败")
 
     def get_segments_with_page(
             self,
@@ -223,3 +292,45 @@ class SegmentService(BaseService):
                     stopped_at=datetime.now(),
                 )
                 raise FailException("更新文档片段启用失败")
+
+    def delete_segment(self, dataset_id: UUID, document_id: UUID, segment_id: UUID) -> Segment:
+        """根据传递的信息删除指定片段"""
+        # todo: 等待授权认证模块完成进行切换调整
+        account_id = "aab6b349-5ca3-4753-bb21-2bbab7712a51"
+
+        segment = self.get(Segment, segment_id)
+        if (
+                segment is None
+                or segment.dataset_id != dataset_id
+                or str(segment.account_id) != account_id
+                or segment.document_id != document_id
+        ):
+            raise NotFoundException("该知识库文档片段不存在或无权限")
+
+        if segment.status not in [SegmentStatus.COMPLETED, SegmentStatus.ERROR]:
+            raise FailException("当前文档不可删除")
+
+        document = segment.document
+        self.delete(segment)
+
+        self.keyword_table_service.delete_keyword_table_from_ids(dataset_id, [segment_id])
+
+        try:
+            self.vector_base_service.collection.data.delete_by_id(str(segment.node_id))
+        except Exception as e:
+            logging.exception("删除文档片段失败")
+
+        document_character_count, document_token_count = self.db.session.query(
+            func.coalesce(func.sum(Segment.character_count), 0),
+            func.coalesce(func.sum(Segment.token_count), 0)
+        ).filter(
+            Segment.document_id == document_id,
+        ).first()
+
+        self.update(
+            document,
+            character_count=document_character_count,
+            token_count=document_token_count,
+        )
+
+        return segment

@@ -46,6 +46,30 @@ class CreateSegmentReq(FlaskForm):
 
         field.data = list(dict.fromkeys(field.data))
 
+class UpdateSegmentReq(FlaskForm):
+    """更新文档片段请求结构"""
+    content = StringField("content", validators=[
+        DataRequired("片段内容不能为空")
+    ])
+    keywords = ListField("keywords")
+
+    def validate_keywords(self, field: ListField) -> None:
+        """校验关键词列表"""
+        if field.data is None:
+            field.data = []
+
+        if not isinstance(field.data, list):
+            raise ValidationError("关键词列表格斯必须是数组")
+
+        if len(field.data) > 10:
+            raise ValidationError("关键词列表长度在1-10之间")
+
+        for keyword in field.data:
+            if not isinstance(keyword, str):
+                raise ValidationError("关键词必须是字符串")
+
+        field.data = list(dict.fromkeys(field.data))
+
 class GetSegmentsWithPageResp(Schema):
     """获取文档片段列表响应结构"""
     id = fields.UUID(dump_default="")
