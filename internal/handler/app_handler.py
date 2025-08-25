@@ -249,9 +249,11 @@ class AppHandler:
         return success_json({"content": content})
 
     def ping(self):
-        human_message = "你好 我叫Jack 你是?"
-        ai_message = "你好 我是ChatGPT"
-        old_summary = "人类询问AI关于LLM（大型语言模型）的介绍，AI提供了LLM的定义、工作原理、功能与应用、优点和局限性，并表示如果需要，可以绘制一张LLM工作原理的简图以帮助理解。"
-        summary = self.conversation_service.summary(human_message, ai_message, old_summary)
-        return success_json({"summary": summary})
+        human_message = "Python是什么"
+        # ai_message = "你好 我是ChatGPT"
+        # old_summary = "人类询问AI关于LLM（大型语言模型）的介绍，AI提供了LLM的定义、工作原理、功能与应用、优点和局限性，并表示如果需要，可以绘制一张LLM工作原理的简图以帮助理解。"
+        #summary = self.conversation_service.summary(human_message, ai_message, old_summary)
+        #conversation_name = self.conversation_service.generate_conversation_name(human_message)
+        questions = self.conversation_service.generate_suggested_questions(human_message)
+        return success_json({"questions": questions})
         #raise FailException("数据未找到")
