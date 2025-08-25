@@ -13,9 +13,7 @@ class AppService:
 
     def create_app(self) -> App:
         with self.db.auto_commit():
-            # 创建模型的实体类
             app = App(name="测试机器人", account_id=uuid.uuid4(), icon="", description="这是一个简单的聊天机器人")
-            # 将实体类添加到session会话中
             self.db.session.add(app)
 
         return app

@@ -1,6 +1,6 @@
 from dataclasses import field, dataclass
-from typing import Any
-from flask import jsonify
+from typing import Any, Union, Generator
+from flask import jsonify, stream_with_context, Response as FlaskResponse
 from .http_code import HttpCode
 
 @dataclass
@@ -64,3 +64,18 @@ def forbidden_message(msg: str = ""):
     """无权限消息响应"""
 
     return message(code=HttpCode.FORBIDDEN, msg=msg)
+
+def compact_generate_response(response: Union[Response, Generator]) -> FlaskResponse:
+    """统一合并处理块输出以及流式事件输出"""
+    if isinstance(response, Response):
+        return json(response)
+    else:
+        def generate() -> Generator:
+            """构建generate函数, 流式从response中获取数据"""
+            yield from response
+
+        return FlaskResponse(
+            stream_with_context(generate()),
+            status=200,
+            mimetype="text/event-stream"
+        )
