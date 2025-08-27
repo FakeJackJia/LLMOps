@@ -78,7 +78,7 @@ class AgentQueueManager:
                     ))
 
                 if self._is_stopped():
-                    self.publish_error(AgentQueueEvent(
+                    self.publish(AgentQueueEvent(
                         id=uuid.uuid4(),
                         task_id=self.task_id,
                         event=QueueEvent.STOP
