@@ -2,9 +2,11 @@ import dotenv
 from .module import injector
 from internal.server import Http
 from internal.router import Router
+from internal.middleware import Middleware
 from config import Config
 from pkg.sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_login import LoginManager
 
 # 将env加载到环境变量中
 dotenv.load_dotenv()
@@ -14,7 +16,9 @@ app = Http(__name__,
            conf=conf,
            db=injector.get(SQLAlchemy),
            migrate=injector.get(Migrate),
-           router=injector.get(Router))
+           router=injector.get(Router),
+           login_manager=injector.get(LoginManager),
+           middleware=injector.get(Middleware))
 
 celery = app.extensions["celery"]
 

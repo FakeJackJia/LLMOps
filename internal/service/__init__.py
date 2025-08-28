@@ -15,6 +15,8 @@ from .keyword_table_service import KeywordTableService
 from .segment_service import SegmentService
 from .retriever_service import RetrievalService
 from .conversation_service import ConversationService
+from .jwt_service import JwtService
+from .account_service import AccountService
 
 __all__ = [
     'AppService',
@@ -33,5 +35,7 @@ __all__ = [
     'KeywordTableService',
     'SegmentService',
     'RetrievalService',
-    'ConversationService'
+    'ConversationService',
+    'JwtService',
+    'AccountService',
 ]
