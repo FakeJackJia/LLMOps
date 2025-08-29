@@ -1,6 +1,6 @@
 import json
 import uuid
-from threading import Thread
+from flask_login import login_required, current_user
 from typing import Dict, Any, Generator
 
 from internal.schema import CompletionReq
@@ -38,22 +38,27 @@ class AppHandler:
     conversation_service: ConversationService
     redis_client: Redis
 
+
+    @login_required
     def create_app(self):
         """调用服务创建的APP记录"""
-        app = self.app_service.create_app()
+        app = self.app_service.create_app(current_user)
 
         return success_message(f"应用成功创建, id为{app.id}")
 
+    @login_required
     def get_app(self, id: UUID):
         app = self.app_service.get_app(id)
 
         return success_message(f"应用已经成功获取, 名字是{app.name}")
 
+    @login_required
     def update_app(self, id: UUID):
         app = self.app_service.update_app(id)
 
         return success_message(f"应用已经成功修改, 修改的名字是{app.name}")
 
+    @login_required
     def delete_app(self, id: UUID):
         app = self.app_service.delete_app(id)
 
@@ -80,6 +85,7 @@ class AppHandler:
         if configurable_memory is not None and isinstance(configurable_memory, BaseMemory):
             configurable_memory.save_context(run_obj.inputs, run_obj.outputs)
 
+    @login_required
     def debug(self, app_id: UUID):
         """应用会话调试聊天接口, 该接口为流式事件输出"""
         req = CompletionReq()
@@ -125,19 +131,10 @@ class AppHandler:
 
         return compact_generate_response(stream_event_response())
 
+    from flask_login import login_required
+
+    @login_required
     def ping(self):
-        from internal.core.agent.agents import FunctionCallAgent
-        from internal.core.agent.entities.agent_entity import AgentConfig
-        from langchain_openai import ChatOpenAI
-
-        agent = FunctionCallAgent(AgentConfig(
-            llm=ChatOpenAI(model="gpt-4o-mini"),
-            preset_prompt="你是一个20年的诗人 请根据用户输入写一首诗"
-        ))
-        state = agent.run("苹果")
-        content = state["messages"][-1].content
-
-        print(state, flush=True)
-        return success_json(content)
+        return success_message()
 
         #raise FailException("数据未找到")

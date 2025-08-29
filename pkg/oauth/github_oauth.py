@@ -36,12 +36,12 @@ class GithubOAuth(OAuth):
         resp.raise_for_status()
         raw_info = resp.json()
 
-        email_resp = requests.get(self._EMAIL_INFO_URL, header=headers)
+        email_resp = requests.get(self._EMAIL_INFO_URL, headers=headers)
         email_resp.raise_for_status()
-        email_info = resp.json()
+        email_info = email_resp.json()
 
-        primary_email = next((email for email in email_info if email["primary"]), None)
-        return {**raw_info, "email": primary_email["email"]}
+        primary_email = next((email for email in email_info if email.get("primary", None)), None)
+        return {**raw_info, "email": primary_email.get("email", None)}
 
     def get_access_token(self, code: str) -> str:
         data = {

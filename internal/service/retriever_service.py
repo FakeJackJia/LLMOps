@@ -12,7 +12,7 @@ from .jieba_service import JiebaService
 from langchain_core.documents import Document as LCDocument
 from langchain.retrievers import EnsembleRetriever
 from internal.entity.dataset_entity import RetrievalStrategy, RetrievalSource
-from internal.model import Dataset, DatasetQuery, Segment
+from internal.model import Dataset, DatasetQuery, Segment, Account
 from internal.exception import NotFoundException
 
 @inject
@@ -27,18 +27,16 @@ class RetrievalService(BaseService):
             self,
             dataset_ids: list[UUID],
             query: str,
+            account: Account,
             retrieval_strategy: str = RetrievalStrategy.SEMANTIC,
             k: int = 4,
             score: float = 0,
             retrieval_source: str = RetrievalSource.HIT_TESTING,
     ) -> list[LCDocument]:
         """根据传递的query+知识库列表执行检索, 并返回检索的文档+得分"""
-        # todo: 等待授权认证模块完成进行切换调整
-        account_id = "aab6b349-5ca3-4753-bb21-2bbab7712a51"
-
         datasets = self.db.session.query(Dataset).filter(
             Dataset.id.in_(dataset_ids),
-            Dataset.account_id == account_id,
+            Dataset.account_id == account.id,
         ).all()
         if datasets is None or len(datasets) == 0:
             raise NotFoundException("当前无知识库可执行检索")
@@ -84,7 +82,7 @@ class RetrievalService(BaseService):
                 source=retrieval_source,
                 # todo: 等待APP配置模块完成后进行调整
                 source_app_id=None,
-                created_by=account_id
+                created_by=account.id
             )
 
         with self.db.auto_commit():
