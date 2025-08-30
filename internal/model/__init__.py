@@ -1,4 +1,4 @@
-from .app import App, AppDatasetJoin
+from .app import App, AppDatasetJoin, AppConfig, AppConfigVersion
 from .api_tool import ApiToolProvider, ApiTool
 from .upload_file import UploadFile
 from .dataset import Dataset, Document, Segment, KeywordTable, DatasetQuery, ProcessRule
@@ -20,5 +20,7 @@ __all__ = [
     "Message",
     "MessageAgentThought",
     "Account",
-    "AccountOAuth"
+    "AccountOAuth",
+    "AppConfig",
+    "AppConfigVersion"
 ]
