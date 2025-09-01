@@ -10,6 +10,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from internal.extension.database_extension import db
+from internal.entity.app_entity import AppConfigType
 
 class App(db.Model):
     """AI应用基础模型类"""
@@ -40,6 +41,7 @@ class App(db.Model):
         """只读属性, 返回当前应用的草稿配置"""
         app_config_version = db.session.query(AppConfigVersion).filter(
             AppConfigVersion.app_id == self.id,
+            AppConfigVersion.config_type == AppConfigType.DRAFT,
         ).one_or_none()
 
         return app_config_version
