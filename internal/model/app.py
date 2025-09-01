@@ -35,6 +35,15 @@ class App(db.Model):
     )
     created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP(0)"))
 
+    @property
+    def draft_app_config(self) -> "AppConfigVersion":
+        """只读属性, 返回当前应用的草稿配置"""
+        app_config_version = db.session.query(AppConfigVersion).filter(
+            AppConfigVersion.app_id == self.id,
+        ).one_or_none()
+
+        return app_config_version
+
 class AppConfig(db.Model):
     """应用配置模型"""
     __tablename__ = "app_config"
