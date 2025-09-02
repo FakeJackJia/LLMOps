@@ -11,6 +11,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from internal.extension.database_extension import db
 from internal.entity.app_entity import AppConfigType
+from internal.entity.conversation_entity import InvokeFrom
+from .conversation import Conversation
 
 class App(db.Model):
     """AI应用基础模型类"""
@@ -45,6 +47,32 @@ class App(db.Model):
         ).one_or_none()
 
         return app_config_version
+
+    @property
+    def debug_conversation(self) -> "Conversation":
+        """获取应用的调试会话记录"""
+        debug_conversation = None
+        if self.debug_conversation_id is not None:
+            debug_conversation = db.session.query(Conversation).filter(
+                Conversation.id == self.debug_conversation_id,
+                Conversation.invoke_from == InvokeFrom.DEBUGGER,
+            ).one_or_none()
+
+        if not self.debug_conversation_id or not debug_conversation:
+            with db.auto_commit():
+                debug_conversation = Conversation(
+                    app_id=self.id,
+                    name="New Conversation",
+                    invoke_from=InvokeFrom.DEBUGGER,
+                    created_by=self.account_id
+                )
+                db.session.add(debug_conversation)
+                db.session.flush()
+
+                self.debug_conversation_id = debug_conversation.id
+
+        return debug_conversation
+
 
 class AppConfig(db.Model):
     """应用配置模型"""

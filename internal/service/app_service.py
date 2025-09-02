@@ -8,7 +8,16 @@ from sqlalchemy import func, desc
 
 from pkg.sqlalchemy import SQLAlchemy
 from pkg.paginator import Paginator
-from internal.model import App, Account, AppConfigVersion, ApiTool, Dataset, AppConfig, AppDatasetJoin
+from internal.model import (
+    App,
+    Account,
+    AppConfigVersion,
+    ApiTool,
+    Dataset,
+    AppConfig,
+    AppDatasetJoin,
+    Conversation,
+)
 from internal.schema.app_schema import CreateAppReq, GetPublishHistoriesWithPageReq
 from internal.exception import NotFoundException, ForbiddenException
 from internal.entity.app_entity import AppStatus, AppConfigType, DEFAULT_APP_CONFIG
@@ -331,6 +340,38 @@ class AppService(BaseService):
         )
 
         return draft_app_config_record
+
+    def get_debug_conversation_summary(self, app_id: UUID, account: Account) -> str:
+        """根据传递的应用id获取调试会话长期记忆"""
+        app = self.get_app(app_id, account)
+
+        draft_app_config = self.get_draft_app_config(app_id, account)
+        if draft_app_config["long_term_memory"]["enable"] is False:
+            raise FailException("该应用并未开启长期记忆")
+
+        return app.debug_conversation.summary
+
+    def update_debug_conversation_summary(self, app_id: UUID, summary: str, account: Account) -> Conversation:
+        """根据传递的应用id+摘要信息更新调试会话长期记忆"""
+        app = self.get_app(app_id, account)
+
+        draft_app_config = self.get_draft_app_config(app_id, account)
+        if draft_app_config["long_term_memory"]["enable"] is False:
+            raise FailException("该应用并未开启长期记忆")
+
+        debug_conversation = app.debug_conversation
+        self.update(debug_conversation, summary=summary)
+        return debug_conversation
+
+    def delete_debug_conversation(self, app_id: UUID, account: Account) -> App:
+        """根据传递的应用id, 清空该应用的调试会话记录"""
+        app = self.get_app(app_id, account)
+
+        if not app.debug_conversation_id:
+            return app
+
+        self.update(app, debug_conversation_id=None)
+        return app
 
     def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
         """校验传递的应用草稿配置信息"""

@@ -37,6 +37,10 @@ class FallbackHistoryToDraftReq(FlaskForm):
         except Exception as e:
             raise ValidationError("回退配置版本id必须为uuid")
 
+class UpdateDebugConversationSummaryReq(FlaskForm):
+    """更新应用会话调试记忆请求体"""
+    summary = StringField("summary", default="")
+
 class GetAppResp(Schema):
     """获取应用基础信息响应结构"""
     id = fields.UUID(dump_default="")
