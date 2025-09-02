@@ -1,5 +1,6 @@
+from flask import request
 from flask_login import login_required, current_user
-from pkg.response import success_json, validate_error_json
+from pkg.response import success_json, validate_error_json, success_message
 from internal.service import (
     AppService,
 )
@@ -40,6 +41,20 @@ class AppHandler:
         """根据传递的应用id获取应用的最新草稿配置"""
         draft_config = self.app_service.get_draft_app_config(app_id, current_user)
         return success_json(draft_config)
+
+    @login_required
+    def update_draft_app_config(self, app_id: UUID):
+        """根据传递的应用id+草稿配置更新应用最新的草稿配置"""
+        draft_app_config = request.get_json(force=True, silent=True) or {}
+
+        self.app_service.update_draft_app_config(app_id, draft_app_config, current_user)
+        return success_message("更新应用草稿配置成功")
+
+    @login_required
+    def publish(self, app_id: UUID):
+        """发布传递的应用id/更新特定的草稿配置"""
+        self.app_service.publish_draft_app_config(app_id, current_user)
+        return success_message("发布/更新应用配置成功")
 
     @login_required
     def ping(self):
