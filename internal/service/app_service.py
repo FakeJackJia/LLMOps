@@ -4,16 +4,17 @@ from uuid import UUID
 from flask import request
 from dataclasses import dataclass
 from injector import inject
-from sqlalchemy import func
+from sqlalchemy import func, desc
 
 from pkg.sqlalchemy import SQLAlchemy
+from pkg.paginator import Paginator
 from internal.model import App, Account, AppConfigVersion, ApiTool, Dataset, AppConfig, AppDatasetJoin
-from internal.schema.app_schema import CreateAppReq
+from internal.schema.app_schema import CreateAppReq, GetPublishHistoriesWithPageReq
 from internal.exception import NotFoundException, ForbiddenException
 from internal.entity.app_entity import AppStatus, AppConfigType, DEFAULT_APP_CONFIG
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
 from internal.lib.helper import datetime_to_timestamp
-from internal.exception import ValidateErrorException
+from internal.exception import ValidateErrorException, FailException
 from .base_service import BaseService
 
 @inject
@@ -266,6 +267,70 @@ class AppService(BaseService):
         )
 
         return app
+
+    def cancel_publish_app_config(self, app_id: UUID, account: Account) -> App:
+        """根据传递的应用id取消发布"""
+        app = self.get_app(app_id, account)
+
+        if app.status != AppStatus.PUBLISHED:
+            raise FailException("当前应用未发布")
+
+        self.update(app, status=AppStatus.DRAFT, app_config_id=None)
+
+        with self.db.auto_commit():
+            self.db.session.query(AppDatasetJoin).filter(
+                AppDatasetJoin.app_id == app_id,
+            ).delete()
+
+        return app
+
+    def get_publish_histories_with_page(
+            self,
+            app_id: UUID,
+            req: GetPublishHistoriesWithPageReq,
+            account: Account
+    ) -> tuple[list[AppConfigVersion], Paginator]:
+        """根据传递的应用id, 获取应用发布历史列表"""
+        self.get_app(app_id, account)
+
+        paginator = Paginator(db=self.db, req=req)
+        app_config_versions =paginator.paginate(
+            self.db.session.query(AppConfigVersion).filter(
+                AppConfigVersion.app_id == app_id,
+                AppConfigVersion.config_type == AppConfigType.PUBLISHED,
+            ).order_by(desc("version"))
+        )
+
+        return app_config_versions, paginator
+
+    def fallback_history_to_draft(
+            self,
+            app_id: UUID,
+            app_config_version_id: UUID,
+            account: Account
+    ) -> AppConfigVersion:
+        """根据传递的应用id+历史版本配置id, 回退到草稿中"""
+        app = self.get_app(app_id, account)
+
+        app_config_version = self.get(AppConfigVersion, app_config_version_id)
+        if not app_config_version:
+            raise NotFoundException("该历史版本不存在")
+
+        draft_app_config_dict = app_config_version.__dict__.copy()
+        remove_fields = ["id", "app_id", "version", "config_type", "updated_at", "created_at", "_sa_instance_state"]
+        for field in remove_fields:
+            draft_app_config_dict.pop(field)
+
+        draft_app_config_dict = self._validate_draft_app_config(draft_app_config_dict, account)
+        draft_app_config_record = app.draft_app_config
+        self.update(
+            draft_app_config_record,
+            # todo: 更新时间补丁信息
+            updated_at=datetime.now(),
+            **draft_app_config_dict
+        )
+
+        return draft_app_config_record
 
     def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
         """校验传递的应用草稿配置信息"""

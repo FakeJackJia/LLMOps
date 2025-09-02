@@ -1,9 +1,11 @@
+from uuid import UUID
 from flask_wtf import FlaskForm
 from wtforms import StringField
-from wtforms.validators import DataRequired, Length, URL
+from wtforms.validators import DataRequired, Length, URL, ValidationError
 from marshmallow import Schema, fields, pre_dump
-from internal.model import App
+from internal.model import App, AppConfigVersion
 from internal.lib.helper import datetime_to_timestamp
+from pkg.paginator import PaginatorReq
 
 class CreateAppReq(FlaskForm):
     """创建Agent应用请求结构体"""
@@ -18,6 +20,22 @@ class CreateAppReq(FlaskForm):
     description = StringField("description", validators=[
         Length(max=800, message="应用描述不能超过800个字符")
     ])
+
+class GetPublishHistoriesWithPageReq(PaginatorReq):
+    """获取应用发布历史配置分页列表请求"""
+
+class FallbackHistoryToDraftReq(FlaskForm):
+    """回退历史版本到草稿请求"""
+    app_config_version_id = StringField("app_config_version_id", validators=[
+        DataRequired("回退配置版本id不能为空")
+    ])
+
+    def validate_app_config_version_id(self, field: StringField) -> None:
+        """校验回退配置版本id"""
+        try:
+            UUID(field.data)
+        except Exception as e:
+            raise ValidationError("回退配置版本id必须为uuid")
 
 class GetAppResp(Schema):
     """获取应用基础信息响应结构"""
@@ -43,4 +61,18 @@ class GetAppResp(Schema):
             "draft_updated_at": datetime_to_timestamp(data.draft_app_config.updated_at),
             "updated_at": datetime_to_timestamp(data.updated_at),
             "created_at": datetime_to_timestamp(data.created_at),
+        }
+
+class GetPublishHistoriesWithPageResp(Schema):
+    """获取应用发布历史配置列表分页数据"""
+    id = fields.UUID(dump_default="")
+    version = fields.Integer(dump_default=0)
+    created_at = fields.Integer(dump_default=0)
+
+    @pre_dump
+    def process_data(self, data: AppConfigVersion, **kwargs):
+        return {
+            "id": data.id,
+            "version": data.version,
+            "created_at": datetime_to_timestamp(data.created_at)
         }

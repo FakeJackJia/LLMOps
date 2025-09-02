@@ -1,12 +1,16 @@
 from flask import request
 from flask_login import login_required, current_user
 from pkg.response import success_json, validate_error_json, success_message
+from pkg.paginator import PageModel
 from internal.service import (
     AppService,
 )
 from internal.schema.app_schema import (
     CreateAppReq,
     GetAppResp,
+    GetPublishHistoriesWithPageReq,
+    GetPublishHistoriesWithPageResp,
+    FallbackHistoryToDraftReq,
 )
 from dataclasses import dataclass
 from injector import inject
@@ -55,6 +59,34 @@ class AppHandler:
         """发布传递的应用id/更新特定的草稿配置"""
         self.app_service.publish_draft_app_config(app_id, current_user)
         return success_message("发布/更新应用配置成功")
+
+    @login_required
+    def cancel_publish(self, app_id: UUID):
+        """根据传递的应用id取消发布"""
+        self.app_service.cancel_publish_app_config(app_id, current_user)
+        return success_message("取消发布应用成功")
+
+    @login_required
+    def get_publish_histories_with_page(self, app_id: UUID):
+        """根据传递的应用id, 获取应用发布历史列表"""
+        req = GetPublishHistoriesWithPageReq(request.args)
+        if not req.validate():
+            return validate_error_json(req.errors)
+
+        app_config_versions, paginator  = self.app_service.get_publish_histories_with_page(app_id, req, current_user)
+
+        resp = GetPublishHistoriesWithPageResp(many=True)
+        return success_json(PageModel(list=resp.dump(app_config_versions), paginator=paginator))
+
+    @login_required
+    def fallback_history_to_draft(self, app_id: UUID):
+        """根据传递的应用id+历史版本配置id, 回退到草稿中"""
+        req = FallbackHistoryToDraftReq()
+        if not req.validate():
+            return validate_error_json(req.errors)
+
+        self.app_service.fallback_history_to_draft(app_id, req.app_config_version_id.data, current_user)
+        return success_message("回退历史配置至草稿成功")
 
     @login_required
     def ping(self):
