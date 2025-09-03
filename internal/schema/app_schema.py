@@ -41,6 +41,12 @@ class UpdateDebugConversationSummaryReq(FlaskForm):
     """更新应用会话调试记忆请求体"""
     summary = StringField("summary", default="")
 
+class DebugChatReq(FlaskForm):
+    """应用调试会话请求体"""
+    query = StringField("query", validators=[
+        DataRequired("用户的query不能为空"),
+    ])
+
 class GetAppResp(Schema):
     """获取应用基础信息响应结构"""
     id = fields.UUID(dump_default="")

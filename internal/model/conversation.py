@@ -10,6 +10,7 @@ from sqlalchemy import (
     Float,
     text,
     PrimaryKeyConstraint,
+    func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from internal.extension.database_extension import db
@@ -41,6 +42,14 @@ class Conversation(db.Model):
     )
     created_at = Column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP(0)'))
 
+    @property
+    def is_new(self) -> bool:
+        """只读属性, 用于判断该会话是否是第一次创建"""
+        message_count = db.session.query(func.count(Message.id)).filter(
+            Message.conversation_id == self.id,
+        ).scalar()
+
+        return False if message_count > 1 else True
 
 class Message(db.Model):
     """交流消息模型"""

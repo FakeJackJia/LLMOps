@@ -124,7 +124,7 @@ class FunctionCallAgent(BaseAgent):
                     task_id=self.agent_queue_manager.task_id,
                     event=QueueEvent.AGENT_MESSAGE,
                     thought=chunk.content,
-                    messages=messages_to_dict(state["messages"]),
+                    message=messages_to_dict(state["messages"]),
                     answer=chunk.content,
                     latency=(time.perf_counter() - start_at),
                 ))
@@ -134,7 +134,8 @@ class FunctionCallAgent(BaseAgent):
                 id=id,
                 task_id=self.agent_queue_manager.task_id,
                 event=QueueEvent.AGENT_THOUGHT,
-                messages=messages_to_dict(state["messages"]),
+                thought=json.dumps(gathered.tool_calls),
+                message=messages_to_dict(state["messages"]),
                 latency=(time.perf_counter() - start_at),
             ))
         elif generation_type == "message":

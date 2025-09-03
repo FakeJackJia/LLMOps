@@ -1,6 +1,6 @@
 from flask import request
 from flask_login import login_required, current_user
-from pkg.response import success_json, validate_error_json, success_message
+from pkg.response import success_json, validate_error_json, success_message, compact_generate_response
 from pkg.paginator import PageModel
 from internal.service import (
     AppService,
@@ -13,6 +13,7 @@ from internal.schema.app_schema import (
     GetPublishHistoriesWithPageResp,
     FallbackHistoryToDraftReq,
     UpdateDebugConversationSummaryReq,
+    DebugChatReq,
 )
 from dataclasses import dataclass
 from injector import inject
@@ -114,19 +115,15 @@ class AppHandler:
         return success_message("清空应用调试会话成功")
 
     @login_required
-    def ping(self):
-        from internal.entity.dataset_entity import RetrievalStrategy, RetrievalSource
-        dataset_retrieval = self.retrieval_service.create_langchain_tool_from_search(
-            dataset_ids=[UUID("c87d24fa-6600-4bf6-8fe9-40411660e8ee")],
-            account=current_user,
-            retrieval_strategy=RetrievalStrategy.SEMANTIC,
-            k=10,
-            score=0.5,
-            retrieval_source=RetrievalSource.DEBUGGER,
-        )
-        print(dataset_retrieval.name)
-        print(dataset_retrieval.description)
-        print(dataset_retrieval.args)
+    def debug_chat(self, app_id: UUID):
+        """根据传递的应用id+query, 发起调试对话"""
+        req = DebugChatReq()
+        if not req.validate():
+            return validate_error_json(req.errors)
 
-        content = dataset_retrieval.invoke({"query": "什么是LLMOps吗"})
-        return success_json({"content": content})
+        response = self.app_service.debug_chat(app_id, req.query.data, current_user)
+        return compact_generate_response(response)
+
+    @login_required
+    def ping(self):
+        pass

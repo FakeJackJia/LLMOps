@@ -92,7 +92,7 @@ class DatasetService(BaseService):
 
         lc_documents = self.retrieval_service.search_in_datasets(
             dataset_ids=[dataset_id],
-            account=account,
+            account_id=account.id,
             **req.data,
         )
 
