@@ -4,6 +4,7 @@ from pkg.response import success_json, validate_error_json, success_message
 from pkg.paginator import PageModel
 from internal.service import (
     AppService,
+    RetrievalService,
 )
 from internal.schema.app_schema import (
     CreateAppReq,
@@ -22,6 +23,7 @@ from uuid import UUID
 class AppHandler:
     """应用控制器"""
     app_service: AppService
+    retrieval_service: RetrievalService
 
     @login_required
     def create_app(self):
@@ -113,4 +115,18 @@ class AppHandler:
 
     @login_required
     def ping(self):
-        pass
+        from internal.entity.dataset_entity import RetrievalStrategy, RetrievalSource
+        dataset_retrieval = self.retrieval_service.create_langchain_tool_from_search(
+            dataset_ids=[UUID("c87d24fa-6600-4bf6-8fe9-40411660e8ee")],
+            account=current_user,
+            retrieval_strategy=RetrievalStrategy.SEMANTIC,
+            k=10,
+            score=0.5,
+            retrieval_source=RetrievalSource.DEBUGGER,
+        )
+        print(dataset_retrieval.name)
+        print(dataset_retrieval.description)
+        print(dataset_retrieval.args)
+
+        content = dataset_retrieval.invoke({"query": "什么是LLMOps吗"})
+        return success_json({"content": content})

@@ -11,9 +11,13 @@ from .vector_database_service import VectorDatabaseService
 from .jieba_service import JiebaService
 from langchain_core.documents import Document as LCDocument
 from langchain.retrievers import EnsembleRetriever
+from langchain_core.tools import BaseTool, tool
+from langchain_core.pydantic_v1 import BaseModel, Field
 from internal.entity.dataset_entity import RetrievalStrategy, RetrievalSource
 from internal.model import Dataset, DatasetQuery, Segment, Account
 from internal.exception import NotFoundException
+from internal.core.agent.entities.agent_entity import DATASET_RETRIEVAL_TOOL_NAME
+from internal.lib.helper import combine_documents
 
 @inject
 @dataclass
@@ -94,3 +98,38 @@ class RetrievalService(BaseService):
             self.db.session.execute(stmt)
 
         return lc_documents
+
+    def create_langchain_tool_from_search(
+            self,
+            dataset_ids: list[UUID],
+            account: Account,
+            retrieval_strategy: str = RetrievalStrategy.SEMANTIC,
+            k: int = 4,
+            score: float = 0,
+            retrieval_source: str = RetrievalSource.HIT_TESTING,
+    ) -> BaseTool:
+        """根据传递的参数构建一个LangChain知识库搜索工具"""
+
+        class DatasetRetrievalInput(BaseModel):
+            """知识库检索工具输入结构"""
+            query: str = Field(description="知识库搜索query语句, 类型为字符串")
+
+        @tool(DATASET_RETRIEVAL_TOOL_NAME, args_schema=DatasetRetrievalInput)
+        def dataset_retrieval(query: str) -> str:
+            """如果需要搜索扩展的知识库内容, 当你觉得用户的提问超过你的知识范围时, 可以尝试调用该工具, 输入为搜索query语句, 返回数据为检索内容字符串"""
+            lc_documents = self.search_in_datasets(
+                dataset_ids=dataset_ids,
+                query=query,
+                account=account,
+                retrieval_strategy=retrieval_strategy,
+                k=k,
+                score=score,
+                retrieval_source=retrieval_source,
+            )
+
+            if len(lc_documents) == 0:
+                return "知识库内没有检索到对应内容"
+
+            return combine_documents(lc_documents)
+
+        return dataset_retrieval

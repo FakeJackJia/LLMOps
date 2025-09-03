@@ -43,3 +43,6 @@ class AgentState(MessagesState):
     """智能体状态"""
     history: list[AnyMessage]
     long_term_memory: str
+
+# 知识库检索工具名称
+DATASET_RETRIEVAL_TOOL_NAME = "dataset_retrieval"

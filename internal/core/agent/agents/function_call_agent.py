@@ -14,7 +14,7 @@ from langchain_core.messages import (
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.graph import StateGraph, END
 from .base_agent import BaseAgent
-from internal.core.agent.entities.agent_entity import AgentState
+from internal.core.agent.entities.agent_entity import AgentState, DATASET_RETRIEVAL_TOOL_NAME
 from internal.core.agent.entities.queue_entity import AgentQueueEvent, QueueEvent
 from internal.exception import FailException
 
@@ -162,7 +162,7 @@ class FunctionCallAgent(BaseAgent):
                 name=tool_call["name"],
             ))
 
-            event = QueueEvent.AGENT_ACTION if tool_call["name"] != "dataset_retrieval" else QueueEvent.DATASET_RETRIEVAL
+            event = QueueEvent.AGENT_ACTION if tool_call["name"] != DATASET_RETRIEVAL_TOOL_NAME else QueueEvent.DATASET_RETRIEVAL
 
             self.agent_queue_manager.publish(AgentQueueEvent(
                 id=id,
