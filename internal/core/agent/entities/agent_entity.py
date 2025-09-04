@@ -39,7 +39,7 @@ class AgentConfig(BaseModel):
     """智能体配置信息, 涵盖: LLM大语言模型、预设prompt、关联插件、知识库、工作流、是否开启长期记忆等内容"""
     # 代表用户唯一标识及调用来源 默认是WEB_APP
     user_id: UUID
-    invoke_from: InvokeFrom.WEB_APP
+    invoke_from: InvokeFrom = InvokeFrom.WEB_APP
 
     # 最大迭代次数
     max_iteration_count: int = 5

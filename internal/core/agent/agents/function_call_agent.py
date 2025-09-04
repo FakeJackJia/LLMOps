@@ -154,8 +154,8 @@ class FunctionCallAgent(BaseAgent):
                     review_config = self.agent_config.review_config
                     content = chunk.content
 
-                    if review_config["enable"] and review_config["output_config"]["enable"]:
-                        for keyword in review_config["keyword"]:
+                    if review_config["enable"] and review_config["outputs_config"]["enable"]:
+                        for keyword in review_config["keywords"]:
                             content = re.sub(re.escape(keyword), "**", content, flags=re.IGNORECASE)
 
                     self.agent_queue_manager.publish(state["task_id"], AgentThought(

@@ -33,4 +33,4 @@ class BaseService:
 
     def get(self, model: Any, primary_key: Any) -> Optional[Any]:
         """根据传递的模型类+主键的信息获取唯一数据"""
-        return self.db.session.query(model).get(primary_key)
+        return self.db.session.get(model, primary_key)
