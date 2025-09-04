@@ -15,8 +15,8 @@ class QueueEvent(str, Enum):
     TIMEOUT = "timeout"
     PING = "ping"
 
-class AgentQueueEvent(BaseModel):
-    """智能体队列事件模型"""
+class AgentThought(BaseModel):
+    """智能体推理观察输出内容"""
     id: UUID
     task_id: UUID
 
@@ -45,3 +45,7 @@ class AgentQueueEvent(BaseModel):
     total_token_count: int = 0
     total_price: float = 0
     latency: float = 0
+
+class AgentResult(BaseModel):
+    """智能体推理观察最终结果"""
+    # todo: 智能体块内容响应, 等待开发API模块完成
