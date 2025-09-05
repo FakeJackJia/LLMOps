@@ -44,8 +44,8 @@ class Http(Flask):
             r"/*": {
                 "origins": "*",
                 "supports_credentials": True,
-                "methods": ["GET", "POST", "OPTIONS"],
-                "allow_headers": ["Content-Type", "Authorization"]
+                # "methods": ["GET", "POST", "OPTIONS"],
+                # "allow_headers": ["Content-Type", "Authorization"]
             }
         })
 
