@@ -122,6 +122,22 @@ class AgentQueueManager:
         return q
 
     @classmethod
+    def set_stop_flag(cls, task_id: UUID, invoke_from: InvokeFrom, user_id: UUID) -> None:
+        """根据传递的任务id+调用来源停止某次会话"""
+        from app.http.module import injector
+        redis_client = injector.get(Redis)
+
+        result = redis_client.get(cls.generate_task_belong_cache_key(task_id))
+        if not result:
+            return
+
+        user_prefix = "account" if invoke_from in [InvokeFrom.DEBUGGER, InvokeFrom.WEB_APP] else "end-user"
+        if result.decode("utf-8") != f"{user_prefix}-{str(user_id)}":
+            return
+
+        redis_client.setex(cls.generate_task_stopped_cache_key(task_id), 600, 1)
+
+    @classmethod
     def generate_task_belong_cache_key(cls, task_id: UUID) -> str:
         """生成任务专属的缓存键"""
         return f"generate_task_belong:{str(task_id)}"

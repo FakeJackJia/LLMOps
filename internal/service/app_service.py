@@ -23,7 +23,11 @@ from internal.model import (
     Message,
     MessageAgentThought
 )
-from internal.schema.app_schema import CreateAppReq, GetPublishHistoriesWithPageReq
+from internal.schema.app_schema import (
+    CreateAppReq,
+    GetPublishHistoriesWithPageReq,
+    GetDebugConversationMessagesWithPageReq,
+)
 from internal.exception import NotFoundException, ForbiddenException
 from internal.entity.app_entity import AppStatus, AppConfigType, DEFAULT_APP_CONFIG
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
@@ -33,7 +37,7 @@ from internal.core.memory import TokenBufferMemory
 from internal.core.tools.api_tools.providers import ApiProviderManager
 from internal.core.tools.api_tools.entities import ToolEntity
 from internal.entity.dataset_entity import RetrievalSource
-from internal.core.agent.agents import FunctionCallAgent
+from internal.core.agent.agents import FunctionCallAgent, AgentQueueManager
 from internal.core.agent.entities.agent_entity import AgentConfig
 from internal.core.agent.entities.queue_entity import QueueEvent
 from internal.entity.conversation_entity import InvokeFrom, MessageStatus
@@ -557,6 +561,42 @@ class AppService(BaseService):
         )
         thread.start()
 
+    def stop_debug_chat(self, app_id: UUID, task_id: UUID, account: Account) -> None:
+        """根据传递的应用id+任务id停止某个应用的指定调试会话"""
+        self.get_app(app_id, account)
+
+        AgentQueueManager.set_stop_flag(task_id, InvokeFrom.DEBUGGER, account.id)
+
+    def get_debug_conversation_messages_with_page(
+            self,
+            app_id: UUID,
+            req: GetDebugConversationMessagesWithPageReq,
+            account: Account
+    ) -> tuple[list[Message], Paginator]:
+        """根据传递的应用id+请求数据, 获取调试会话消息列表分页数据"""
+        app = self.get_app(app_id, account)
+
+        debug_conversation = app.debug_conversation
+
+        paginator = Paginator(db=self.db, req=req)
+        filters = []
+        if req.created_at.data is not None:
+            # 将时间戳转换成DateTime
+            created_at_datetime = datetime.fromtimestamp(req.created_at.data)
+            filters.append(Message.created_at <= created_at_datetime)
+
+        messages = paginator.paginate(
+            self.db.session.query(Message).filter(
+                Message.conversation_id == debug_conversation.id,
+                Message.status.in_([MessageStatus.STOP, MessageStatus.NORMAL]),
+                Message.answer != "",
+                Message.is_deleted == False,
+                *filters
+            ).order_by(desc("created_at"))
+        )
+
+        return messages, paginator
+
     def _save_agent_thoughts(
             self,
             flask_app: Flask,
@@ -631,6 +671,13 @@ class AppService(BaseService):
                                 conversation,
                                 name=new_conversation_name,
                             )
+
+                    if item["event"] in [QueueEvent.STOP, QueueEvent.ERROR]:
+                        self.update(
+                            message,
+                            status=MessageStatus.STOP if item["event"] == QueueEvent.STOP else MessageStatus.ERROR
+                        )
+                        break
 
     def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
         """校验传递的应用草稿配置信息"""
