@@ -1,3 +1,5 @@
+import uuid
+
 from flask import request
 from flask_login import login_required, current_user
 from pkg.response import success_json, validate_error_json, success_message, compact_generate_response
@@ -150,4 +152,19 @@ class AppHandler:
 
     @login_required
     def ping(self):
-        pass
+        from internal.core.agent.agents import FunctionCallAgent
+        from internal.core.agent.entities.agent_entity import AgentConfig
+        from langchain_openai import ChatOpenAI
+        from langchain_core.messages import HumanMessage
+        from internal.core.tools.builtin_tools.providers.google import google_serper
+
+        agent = FunctionCallAgent(
+            llm=ChatOpenAI(model='gpt-4o-mini'),
+            agent_config=AgentConfig(
+                user_id=uuid.uuid4(),
+                tools=[google_serper()]
+            )
+        )
+
+        agent_result = agent.invoke({"messages": [HumanMessage("2024年的马拉松前三名")]})
+        return success_json({"agent_result": agent_result.model_dump()})

@@ -1,6 +1,7 @@
 from uuid import UUID
 from enum import Enum
 from pydantic import BaseModel, Field
+from internal.entity.conversation_entity import MessageStatus
 
 class QueueEvent(str, Enum):
     """队列事件枚举类型"""
@@ -48,4 +49,23 @@ class AgentThought(BaseModel):
 
 class AgentResult(BaseModel):
     """智能体推理观察最终结果"""
-    # todo: 智能体块内容响应, 等待开发API模块完成
+    query: str = "" # 原始用户提问
+
+    message: list[dict] = Field(default_factory=list)
+    message_token_count: int = 0
+    message_unit_price: float = 0
+    message_price_unit: float = 0
+
+    answer: str = ""
+    answer_token_count: int = 0
+    answer_unit_price: float = 0
+    answer_price_unit: float = 0
+
+    total_token_count: int = 0
+    total_price: float = 0
+    latency: float = 0
+
+    status: str = MessageStatus.NORMAL
+    error: str = ""
+
+    agent_thoughts: list[AgentThought] = Field(default_factory=list)

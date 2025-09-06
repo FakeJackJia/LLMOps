@@ -99,4 +99,5 @@ class MessageStatus(str, Enum):
     """会话状态"""
     NORMAL = "normal"
     STOP = "stop"
+    TIMEOUT = "timeout"
     ERROR = "error"

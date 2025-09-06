@@ -32,7 +32,7 @@ class TokenBufferMemory:
             Message.conversation_id == self.conversation.id,
             Message.answer != "",
             Message.is_deleted == False,
-            Message.status.in_([MessageStatus.NORMAL, MessageStatus.STOP])
+            Message.status.in_([MessageStatus.NORMAL, MessageStatus.STOP, MessageStatus.TIMEOUT])
         ).order_by(asc("created_by")).limit(message_limit).all()
 
         prompt_messages = []

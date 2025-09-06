@@ -44,6 +44,7 @@ from internal.entity.conversation_entity import InvokeFrom, MessageStatus
 from .base_service import BaseService
 from .retriever_service import RetrievalService
 from .conversation_service import ConversationService
+from .app_config_service import AppConfigService
 
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
@@ -58,6 +59,7 @@ class AppService(BaseService):
     api_provider_manager: ApiProviderManager
     retrieval_service: RetrievalService
     conversation_service: ConversationService
+    app_config_service: AppConfigService
     redis_client: Redis
 
     def create_app(self, req: CreateAppReq, account: Account) -> App:
@@ -101,125 +103,7 @@ class AppService(BaseService):
     def get_draft_app_config(self, app_id: UUID, account: Account) -> dict[str, Any]:
         """根据传递的应用id, 获取指定的应用草稿配置信息"""
         app = self.get_app(app_id, account)
-
-        draft_app_config = app.draft_app_config
-
-        # todo: 校验model_config配置信息, 等待多LLM实现的时候再来完成
-
-        # 校验工具列表
-        draft_tools = draft_app_config.tools
-        validate_tools = []
-        tools = []
-        for draft_tool in draft_tools:
-            if draft_tool["type"] == "builtin_tool":
-                provider = self.builtin_provider_manager.get_provider(draft_tool["provider_id"])
-                if not provider:
-                    continue
-
-                tool_entity = provider.get_tool_entity(draft_tool["tool_id"])
-                if not tool_entity:
-                    continue
-
-                param_keys = set([param.name for param in tool_entity.params])
-                if set(draft_tool["params"].keys()) - param_keys:
-                    continue
-
-                validate_tools.append(draft_tool)
-
-                # 组装内置工具展示信息
-                provider_entity = provider.provider_entity
-                tools.append({
-                    "type": "builtin_tool",
-                    "provider": {
-                        "id": provider_entity.name,
-                        "name": provider_entity.name,
-                        "label": provider_entity.label,
-                        "icon": f"{request.scheme}://{request.host}/builtin-tools/{provider_entity.name}/icon",
-                        "description": provider_entity.description,
-                    },
-                    "tool": {
-                        "id": tool_entity.name,
-                        "name": tool_entity.name,
-                        "label": tool_entity.label,
-                        "description": tool_entity.description,
-                        "params": draft_tool["params"],
-                    }
-                })
-
-            elif draft_tool["type"] == "api_tool":
-                tool_record = self.db.session.query(ApiTool).filter(
-                    ApiTool.provider_id == draft_tool["provider_id"],
-                    ApiTool.name == draft_tool["tool_id"],
-                ).one_or_none()
-
-                if not tool_record:
-                    continue
-
-                validate_tools.append(draft_tool)
-
-                provider = tool_record.provider
-                tools.append({
-                    "type": "api_tool",
-                    "provider": {
-                        "id": str(provider.id),
-                        "name": provider.name,
-                        "label": provider.name,
-                        "icon": provider.icon,
-                        "description": provider.description,
-                    },
-                    "tool": {
-                        "id": str(tool_record.id),
-                        "name": tool_record.name,
-                        "label": tool_record.name,
-                        "description": tool_record.description,
-                        "params": {},
-                    }
-                })
-
-        if len(validate_tools) != len(draft_tools):
-            self.update(draft_app_config, tools=validate_tools)
-
-        datasets = []
-        draft_datasets = draft_app_config.datasets
-        dataset_records = self.db.session.query(Dataset).filter(Dataset.id.in_(draft_datasets)).all()
-        dataset_dict = {str(dataset_record.id): dataset_record for dataset_record in dataset_records}
-        dataset_sets = set(dataset_dict.keys())
-        exist_dataset_ids = [dataset_id for dataset_id in draft_datasets if dataset_id in dataset_sets]
-
-        if len(exist_dataset_ids) != len(draft_datasets):
-            self.update(draft_app_config, datasets=exist_dataset_ids)
-
-        for dataset_id in exist_dataset_ids:
-            dataset = dataset_dict.get(str(dataset_id))
-            datasets.append({
-                "id": str(dataset_id),
-                "name": dataset.name,
-                "icon": dataset.icon,
-                "description": dataset.description,
-            })
-
-        # todo: 校验工作流
-        workflow = []
-
-        return {
-            "id": str(draft_app_config.id),
-            "model_config": draft_app_config.model_config,
-            "dialog_round": draft_app_config.dialog_round,
-            "preset_prompt": draft_app_config.preset_prompt,
-            "tools": tools,
-            "workflows": workflow,
-            "datasets": datasets,
-            "retrieval_config": draft_app_config.retrieval_config,
-            "long_term_memory": draft_app_config.long_term_memory,
-            "opening_statement": draft_app_config.opening_statement,
-            "opening_questions": draft_app_config.opening_questions,
-            "speech_to_text": draft_app_config.speech_to_text,
-            "text_to_speech": draft_app_config.text_to_speech,
-            "suggested_after_answer": draft_app_config.suggested_after_answer,
-            "review_config": draft_app_config.review_config,
-            "updated_at": datetime_to_timestamp(draft_app_config.updated_at),
-            "created_at": datetime_to_timestamp(draft_app_config.created_at),
-        }
+        return self.app_config_service.get_draft_app_config(app)
 
     def update_draft_app_config(
             self,
@@ -432,37 +316,7 @@ class AppService(BaseService):
             message_limit=draft_app_config["dialog_round"],
         )
 
-        tools = []
-        for tool in draft_app_config["tools"]:
-            if tool["type"] == "builtin_tool":
-                builtin_tool = self.builtin_provider_manager.get_tool(
-                    tool["provider"]["id"],
-                    tool["tool"]["name"]
-                )
-
-                if not builtin_tool:
-                    continue
-
-                tools.append(builtin_tool(**tool["tool"]["params"]))
-            else:
-                api_tool = self.get(ApiTool, tool["tool"]["id"])
-
-                if not api_tool:
-                    continue
-
-                tools.append(
-                    self.api_provider_manager.get_tool(
-                        ToolEntity(
-                            id=str(api_tool.id),
-                            name=api_tool.name,
-                            url=api_tool.url,
-                            method=api_tool.method,
-                            description=api_tool.description,
-                            headers=api_tool.provider.headers,
-                            parameters=api_tool.parameters,
-                        )
-                    )
-                )
+        tools = self.app_config_service.get_langchain_tools_by_tools_config(draft_app_config["tools"])
 
         if draft_app_config["datasets"]:
             dataset_retrieval = self.retrieval_service.create_langchain_tool_from_search(
@@ -498,64 +352,37 @@ class AppService(BaseService):
             if agent_thought.event != QueueEvent.PING:
                 if agent_thought.event == QueueEvent.AGENT_MESSAGE:
                     if event_id not in agent_thoughts:
-                        agent_thoughts[event_id] = {
-                            "id": event_id,
-                            "task_id": str(agent_thought.task_id),
-                            "event": agent_thought.event,
-                            "thought": agent_thought.thought,
-                            "observation": agent_thought.observation,
-                            "tool": agent_thought.tool,
-                            "tool_input": agent_thought.tool_input,
-                            "message": agent_thought.message,
-                            "answer": agent_thought.answer,
-                            "latency": agent_thought.latency
-                        }
+                        agent_thoughts[event_id] = agent_thought
                     else:
-                        agent_thoughts[event_id] = {
-                            **agent_thoughts[event_id],
-                            "thought": agent_thoughts[event_id]["thought"] + agent_thought.thought,
-                            "answer": agent_thoughts[event_id]["answer"] + agent_thought.answer,
-                            "latency": agent_thought.latency,
-                        }
+                        agent_thoughts[event_id] = agent_thoughts[event_id].model_copy(update={
+                            "thought": agent_thoughts[event_id].thought + agent_thought.thought,
+                            "answer": agent_thoughts[event_id].answer + agent_thought.answer,
+                            "latency": agent_thought.latency
+                        })
                 else:
-                    agent_thoughts[event_id] = {
-                        "id": event_id,
-                        "task_id": str(agent_thought.task_id),
-                        "event": agent_thought.event,
-                        "thought": agent_thought.thought,
-                        "observation": agent_thought.observation,
-                        "tool": agent_thought.tool,
-                        "tool_input": agent_thought.tool_input,
-                        "message": agent_thought.message,
-                        "answer": agent_thought.answer,
-                        "latency": agent_thought.latency
-                    }
+                    agent_thoughts[event_id] = agent_thought
 
             data = {
+                **agent_thought.model_dump(include={
+                    "event", "thought", "observation", "tool", "tool_input", "answer", "latency"
+                }),
                 "id": event_id,
                 "conversation_id": str(debug_conversation.id),
                 "message_id": str(message.id),
-                "task_id": str(agent_thought.task_id),
-                "event": agent_thought.event,
-                "thought": agent_thought.thought,
-                "observation": agent_thought.observation,
-                "tool": agent_thought.tool,
-                "tool_input": agent_thought.tool_input,
-                "answer": agent_thought.answer,
-                "latency": agent_thought.latency
+                "task_id": str(agent_thought.task_id)
             }
 
             yield f"event: {agent_thought.event}\ndata:{json.dumps(data)}\n\n"
 
         thread = Thread(
-            target=self._save_agent_thoughts,
+            target=self.conversation_service.save_agent_thoughts,
             kwargs={
                 "flask_app": current_app._get_current_object(),
                 "account_id": account.id,
                 "app_id": app.id,
                 "conversation_id": debug_conversation.id,
                 "message_id": message.id,
-                "agent_thoughts": agent_thoughts,
+                "agent_thoughts": [agent_thought for agent_thought in agent_thoughts.values()],
                 "draft_app_config": draft_app_config
             }
         )
@@ -596,88 +423,6 @@ class AppService(BaseService):
         )
 
         return messages, paginator
-
-    def _save_agent_thoughts(
-            self,
-            flask_app: Flask,
-            account_id: UUID,
-            app_id: UUID,
-            conversation_id: UUID,
-            message_id: UUID,
-            agent_thoughts: dict[str, Any],
-            draft_app_config: dict[str, Any]
-    ) -> None:
-        """存储智能体推理步骤信息"""
-        with flask_app.app_context():
-            position = 0
-            latency = 0
-
-            conversation = self.get(Conversation, conversation_id)
-            message = self.get(Message, message_id)
-
-
-            for key, item in agent_thoughts.items():
-                if item["event"] in [
-                    QueueEvent.LONG_TERM_MEMORY_RECALL,
-                    QueueEvent.AGENT_THOUGHT,
-                    QueueEvent.AGENT_MESSAGE,
-                    QueueEvent.AGENT_ACTION,
-                    QueueEvent.DATASET_RETRIEVAL,
-                ]:
-
-                    position += 1
-                    latency += item["latency"]
-
-                    self.create(
-                        MessageAgentThought,
-                        app_id=app_id,
-                        conversation_id=conversation.id,
-                        message_id=message.id,
-                        invoke_from=InvokeFrom.DEBUGGER,
-                        created_by=account_id,
-                        position=position,
-                        event=item["event"],
-                        thought=item["thought"],
-                        observation=item["observation"],
-                        tool=item["tool"],
-                        tool_input=item["tool_input"],
-                        message=item["message"],
-                        answer=item["answer"],
-                        latency=item["latency"]
-                    )
-
-                    if item["event"] == QueueEvent.AGENT_MESSAGE:
-                        self.update(
-                            message,
-                            message=item["message"],
-                            answer=item["answer"],
-                            latency=latency,
-                        )
-
-                        if draft_app_config["long_term_memory"]["enable"]:
-                            new_summary = self.conversation_service.summary(
-                                message.query,
-                                item["answer"],
-                                conversation.summary
-                            )
-                            self.update(
-                                conversation,
-                                summary=new_summary,
-                            )
-
-                        if conversation.is_new:
-                            new_conversation_name = self.conversation_service.generate_conversation_name(message.query)
-                            self.update(
-                                conversation,
-                                name=new_conversation_name,
-                            )
-
-                    if item["event"] in [QueueEvent.STOP, QueueEvent.ERROR]:
-                        self.update(
-                            message,
-                            status=MessageStatus.STOP if item["event"] == QueueEvent.STOP else MessageStatus.ERROR
-                        )
-                        break
 
     def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
         """校验传递的应用草稿配置信息"""
@@ -910,4 +655,3 @@ class AppService(BaseService):
                     raise ValidateErrorException("输入审核预设响应不能为空")
 
         return draft_app_config
-
