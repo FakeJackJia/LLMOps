@@ -39,6 +39,13 @@ class App(db.Model):
     created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP(0)"))
 
     @property
+    def app_config(self) -> 'AppConfig':
+        """只读属性, 返回当前应用的运行配置"""
+        if not self.app_config_id:
+            return None
+        return db.session.get(AppConfig, self.app_config_id)
+
+    @property
     def draft_app_config(self) -> "AppConfigVersion":
         """只读属性, 返回当前应用的草稿配置"""
         app_config_version = db.session.query(AppConfigVersion).filter(
@@ -107,6 +114,13 @@ class AppConfig(db.Model):
         server_onupdate=text("CURRENT_TIMESTAMP(0)"),
     )
     created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP(0)"))
+
+    @property
+    def app_dataset_joins(self) -> list['AppDatasetJoin']:
+        """只读属性, 返回配置的知识库关联记录"""
+        return db.session.query(AppDatasetJoin).filter(
+            AppDatasetJoin.app_id == self.app_id,
+        ).all()
 
 class AppConfigVersion(db.Model):
     """应用配置版本历史表，用于存储草稿配置+历史发布配置"""

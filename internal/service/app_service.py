@@ -383,7 +383,7 @@ class AppService(BaseService):
                 "conversation_id": debug_conversation.id,
                 "message_id": message.id,
                 "agent_thoughts": [agent_thought for agent_thought in agent_thoughts.values()],
-                "draft_app_config": draft_app_config
+                "app_config": draft_app_config
             }
         )
         thread.start()

@@ -110,7 +110,7 @@ class ConversationService(BaseService):
             conversation_id: UUID,
             message_id: UUID,
             agent_thoughts: list[AgentThought],
-            draft_app_config: dict[str, Any]
+            app_config: dict[str, Any]
     ) -> None:
         """存储智能体推理步骤消息"""
         with flask_app.app_context():
@@ -158,7 +158,7 @@ class ConversationService(BaseService):
                             latency=latency,
                         )
 
-                        if draft_app_config["long_term_memory"]["enable"]:
+                        if app_config["long_term_memory"]["enable"]:
                             new_summary = self.summary(
                                 message.query,
                                 agent_thought.answer,

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from .base_service import BaseService
 from pkg.sqlalchemy import SQLAlchemy
 
-from internal.model import App, ApiTool, Dataset, AppConfig, AppConfigVersion
+from internal.model import App, ApiTool, Dataset, AppConfig, AppConfigVersion, AppDatasetJoin
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
 from internal.core.tools.api_tools.providers import ApiProviderManager
 from internal.lib.helper import datetime_to_timestamp
@@ -47,6 +47,29 @@ class AppConfigService(BaseService):
 
     def get_app_config(self, app: App) -> dict[str, Any]:
         """根据传递的应用获取该应用的运行配置"""
+        app_config = app.app_config
+
+        # todo: 校验model_config配置信息, 等待多LLM实现的时候再来完成
+
+        # 校验工具列表
+        tools, validate_tools = self._process_and_validate_tools(app_config.tools)
+
+        if len(validate_tools) != len(app_config.tools):
+            self.update(app_config, tools=validate_tools)
+
+        app_dataset_joins = app_config.app_dataset_joins
+        original_datasets = [str(app_dataset_join.dataset_id) for app_dataset_join in app_dataset_joins]
+        datasets, validate_datasets = self._process_and_validate_datasets(original_datasets)
+
+        for dataset_id in (set(original_datasets) - set(validate_datasets)):
+            self.db.session.query(AppDatasetJoin).filter(
+                AppDatasetJoin.dataset_id == dataset_id,
+            ).delete()
+
+        # todo: 校验工作流
+        workflows = []
+
+        return self._process_and_transform_app_config(tools, workflows, datasets, app_config)
 
     def get_langchain_tools_by_tools_config(self, tools_config: list[dict]) -> list[BaseTool]:
         """根据传递的工具配置列表获langchain工具列表"""
