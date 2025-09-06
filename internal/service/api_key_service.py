@@ -12,10 +12,6 @@ from pkg.paginator import PaginatorReq, Paginator
 
 from internal.schema.api_key_schema import (
     CreateApiKeyReq,
-    UpdateApiKeyReq,
-    UpdateApiKeyIsActiveReq,
-
-    GetApiKeysWithPageResp
 )
 from internal.model import Account, ApiKey
 from internal.exception import ForbiddenException
@@ -35,6 +31,12 @@ class ApiKeyService(BaseService):
             is_active=req.is_active.data,
             remark=req.remark.data
         )
+
+    def get_api_by_credential(self, api_key: str) -> ApiKey:
+        """根据传递的凭证信息获取ApiKey记录"""
+        return self.db.session.query(ApiKey).filter(
+            ApiKey.api_key == api_key,
+        ).one_or_none()
 
     def get_api_key(self, api_key_id: UUID, account: Account) -> ApiKey:
         """根据传递的密钥id+账号信息获取记录"""
