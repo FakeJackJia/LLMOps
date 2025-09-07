@@ -189,19 +189,12 @@ class AppHandler:
 
     @login_required
     def ping(self):
-        from internal.core.agent.agents import FunctionCallAgent
-        from internal.core.agent.entities.agent_entity import AgentConfig
-        from langchain_openai import ChatOpenAI
-        from langchain_core.messages import HumanMessage
-        from internal.core.tools.builtin_tools.providers.google import google_serper
+        from internal.core.workflow import Workflow
+        from internal.core.workflow.entities.workflow_entity import WorkflowConfig
 
-        agent = FunctionCallAgent(
-            llm=ChatOpenAI(model='gpt-4o-mini'),
-            agent_config=AgentConfig(
-                user_id=uuid.uuid4(),
-                tools=[google_serper()]
-            )
-        )
+        workflow = Workflow(workflow_config=WorkflowConfig(
+            name="workflow",
+            description="工作流组件"
+        ))
 
-        agent_result = agent.invoke({"messages": [HumanMessage("2024年的马拉松前三名")]})
-        return success_json({"agent_result": agent_result.model_dump()})
+        return success_json(workflow.invoke({"query": "你好", "username": "Jack"}))
