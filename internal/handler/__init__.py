@@ -11,6 +11,7 @@ from .auth_handler import AuthHandler
 from .ai_handler import AIHandler
 from .api_key_handler import ApiKeyHandler
 from .openapi_handler import OpenAPIHandler
+from .builtin_app_handler import BuiltinAppHandler
 
 __all__ = [
     "AppHandler",
@@ -25,5 +26,6 @@ __all__ = [
     "AuthHandler",
     "AIHandler",
     "ApiKeyHandler",
-    "OpenAPIHandler"
+    "OpenAPIHandler",
+    "BuiltinAppHandler"
 ]
