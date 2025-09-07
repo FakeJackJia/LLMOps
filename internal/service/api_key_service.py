@@ -74,4 +74,3 @@ class ApiKeyService(BaseService):
     def generate_api_key(cls, api_key_prefix: str = "llmops-v1/") -> str:
         """生成一个长度为48的API密钥并携带前缀"""
         return api_key_prefix + secrets.token_urlsafe(48)
-

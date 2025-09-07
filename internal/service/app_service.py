@@ -3,7 +3,7 @@ from datetime import datetime
 from threading import Thread
 from typing import Any, Generator
 from uuid import UUID
-from flask import request, current_app, Flask
+from flask import current_app
 from dataclasses import dataclass
 from injector import inject
 from sqlalchemy import func, desc
@@ -21,26 +21,25 @@ from internal.model import (
     AppDatasetJoin,
     Conversation,
     Message,
-    MessageAgentThought
 )
 from internal.schema.app_schema import (
     CreateAppReq,
     GetPublishHistoriesWithPageReq,
     GetDebugConversationMessagesWithPageReq,
+    GetAppsWithPageReq
 )
 from internal.exception import NotFoundException, ForbiddenException
 from internal.entity.app_entity import AppStatus, AppConfigType, DEFAULT_APP_CONFIG
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
-from internal.lib.helper import datetime_to_timestamp
 from internal.exception import ValidateErrorException, FailException
 from internal.core.memory import TokenBufferMemory
 from internal.core.tools.api_tools.providers import ApiProviderManager
-from internal.core.tools.api_tools.entities import ToolEntity
 from internal.entity.dataset_entity import RetrievalSource
 from internal.core.agent.agents import FunctionCallAgent, AgentQueueManager
 from internal.core.agent.entities.agent_entity import AgentConfig
 from internal.core.agent.entities.queue_entity import QueueEvent
 from internal.entity.conversation_entity import InvokeFrom, MessageStatus
+from internal.lib.helper import remove_fields
 from .base_service import BaseService
 from .retriever_service import RetrievalService
 from .conversation_service import ConversationService
@@ -99,6 +98,69 @@ class AppService(BaseService):
             raise ForbiddenException("当前账号无权限访问该应用")
 
         return app
+
+    def delete_app(self, app_id: UUID, account: Account) -> App:
+        """根据传递的应用id+账号, 删除指定的应用信息, 目前仅删除应用信息即可"""
+        app = self.get_app(app_id, account)
+        self.delete(app)
+        return app
+
+    def update_app(self, app_id: UUID, account: Account, **kwargs) -> App:
+        """根据传递的应用id+账号+信息, 更新指定的应用"""
+        app = self.get_app(app_id, account)
+        self.update(app, **kwargs)
+        return app
+
+    def get_apps_with_page(self, req: GetAppsWithPageReq, account: Account) -> tuple[list[App], Paginator]:
+        """根据传递的分页参数获取当前登录账号下的应用分页列表数据"""
+        paginator = Paginator(db=self.db, req=req)
+
+        filters = []
+        if req.search_word.data:
+            filters.append(App.name.ilike(f"%{req.search_word.data}%"))
+
+        apps = paginator.paginate(
+            self.db.session.query(App).filter(*filters).order_by(desc("created_at"))
+        )
+
+        return apps, paginator
+
+    def copy_app(self, app_id: UUID, account: Account) -> App:
+        """根据传递的应用id拷贝Agent相关信息并创建一个新的Agent"""
+        app = self.get_app(app_id, account)
+        draft_app_config = app.draft_app_config
+
+        app_dict = app.__dict__.copy()
+        draft_app_config_dict = draft_app_config.__dict__.copy()
+
+        app_remove_fields = [
+            "id", "app_config_id", "draft_app_config_id", "debug_conversation_id",
+            "status", "updated_at", "created_at", "_sa_instance_state"
+        ]
+        draft_app_config_remove_fields = [
+             "id", "app_id", "version", "updated_at",
+             "created_at", "_sa_instance_state"
+        ]
+
+        remove_fields(app_dict, app_remove_fields)
+        remove_fields(draft_app_config_dict, draft_app_config_remove_fields)
+
+        with self.db.auto_commit():
+            new_app = App(**app_dict, status=AppStatus.DRAFT)
+            self.db.session.add(new_app)
+            self.db.session.flush()
+
+            new_draft_app_config = AppConfigVersion(
+                **draft_app_config_dict,
+                app_id=new_app.id,
+                version=0
+            )
+            self.db.session.add(new_draft_app_config)
+            self.db.session.flush()
+
+            new_app.draft_app_config_id = new_draft_app_config.id
+
+        return new_app
 
     def get_draft_app_config(self, app_id: UUID, account: Account) -> dict[str, Any]:
         """根据传递的应用id, 获取指定的应用草稿配置信息"""
@@ -169,9 +231,10 @@ class AppService(BaseService):
             self.create(AppDatasetJoin, app_id=app_id, dataset_id=dataset["id"])
 
         draft_app_config_copy = app.draft_app_config.__dict__.copy()
-        remove_fields = ["id", "version", "config_type", "updated_at", "created_at", "_sa_instance_state"]
-        for field in remove_fields:
-            draft_app_config_copy.pop(field)
+        remove_fields(
+            draft_app_config_copy,
+            ["id", "version", "config_type", "updated_at", "created_at", "_sa_instance_state"]
+        )
 
         max_version = self.db.session.query(func.coalesce(func.max(AppConfigVersion.version), 0)).filter(
             AppConfigVersion.app_id == app_id,
@@ -237,9 +300,10 @@ class AppService(BaseService):
             raise NotFoundException("该历史版本不存在")
 
         draft_app_config_dict = app_config_version.__dict__.copy()
-        remove_fields = ["id", "app_id", "version", "config_type", "updated_at", "created_at", "_sa_instance_state"]
-        for field in remove_fields:
-            draft_app_config_dict.pop(field)
+        remove_fields(
+            draft_app_config_dict,
+            ["id", "app_id", "version", "config_type", "updated_at", "created_at", "_sa_instance_state"]
+        )
 
         draft_app_config_dict = self._validate_draft_app_config(draft_app_config_dict, account)
         draft_app_config_record = app.draft_app_config
