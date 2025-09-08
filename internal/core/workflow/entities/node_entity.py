@@ -4,9 +4,21 @@ from uuid import UUID
 
 from langchain_core.pydantic_v1 import BaseModel, Field
 
+class NodeType(str, Enum):
+    """节点类型枚举"""
+    START = "start"
+    LLM = "llm"
+    TOOL = "tool"
+    CODE = "code"
+    DATASET_RETRIEVAL = "dataset_retrieval"
+    HTTP_REQUEST = "http_request"
+    TEMPLATE_TRANSFORM = "template_transform"
+    END = "end"
+
 class BaseNodeData(BaseModel):
     """基础节点数据"""
     id: UUID # 节点id, 必须唯一
+    node_type: NodeType # 节点类型
     title: str = "" # 节点标题, 必须唯一
     description: str = "" # 节点描述
 
