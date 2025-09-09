@@ -222,6 +222,28 @@ class AppHandler:
                 ]
             },
             {
+                "id": "868b5769-1925-4e7b-8aa4-af7c3d444d91",
+                "node_type": "dataset_retrieval",
+                "title": "知识库检索",
+                "description": "",
+                "inputs": [
+                    {
+                        "name": "query",
+                        "type": "string",
+                        "value": {
+                            "type": "ref",
+                            "content": {
+                                "ref_node_id": "18d938c4-ecd7-4a6b-9403-3625224b96cc",
+                                "ref_var_name": "query"
+                            }
+                        }
+                    }
+                ],
+                "dataset_ids": [
+                    "c87d24fa-6600-4bf6-8fe9-40411660e8ee"
+                ],
+            },
+            {
                 "id": "eba75e0b-21b7-46ed-8d21-791724f0740f",
                 "node_type": "llm",
                 "title": "大语言模型",
@@ -238,9 +260,21 @@ class AppHandler:
                             },
                         }
                     },
+                    {
+                        "name": "context",
+                        "type": "string",
+                        "value": {
+                            "type": "ref",
+                            "content": {
+                                "ref_node_id": "868b5769-1925-4e7b-8aa4-af7c3d444d91",
+                                "ref_var_name": "combine_documents",
+                            },
+                        }
+                    },
                 ],
                 "prompt": (
-                    "你是一个强有力的AI机器人，请根据用户的提问回复特定的内容，用户的提问是: {{query}}"
+                    "你是一个强有力的AI机器人，请根据用户的提问回复特定的内容，用户的提问是: {{query}}。\n\n"
+                    "如果有必要，可以使用上下文内容进行回复，上下文内容:\n\n<context>{{context}}</context>"
                 ),
                 "model_config": {
                     "provider": "openai",
@@ -253,6 +287,39 @@ class AppHandler:
                         "max_tokens": 8192,
                     },
                 }
+            },
+            {
+                "id": "4a9ed43d-e886-49f7-af9f-9e85d83b27aa",
+                "node_type": "code",
+                "title": "代码",
+                "description": "",
+                "inputs": [
+                    {
+                        "name": "combine_documents",
+                        "type": "string",
+                        "value": {
+                            "type": "ref",
+                            "content": {
+                                "ref_node_id": "868b5769-1925-4e7b-8aa4-af7c3d444d91",
+                                "ref_var_name": "combine_documents",
+                            },
+                        }
+                    },
+                ],
+                "code": """def main(params):
+            return {
+                "first_100_documents": params.get("combine_documents", "")[:100]
+            }""",
+                "outputs": [
+                    {
+                        "name": "first_100_documents",
+                        "type": "string",
+                        "value": {
+                            "type": "generated",
+                            "content": "",
+                        }
+                    }
+                ]
             },
             {
                 "id": "623b7671-0bc2-446c-bf5e-5e25032a522e",
@@ -284,6 +351,47 @@ class AppHandler:
                     }
                 ],
                 "template": "地址: {{location}}\n提问内容: {{query}}",
+            },
+            {
+                "id": "2f6cf40d-0219-421b-92ff-229fdde15ecb",
+                "node_type": "tool",
+                "title": "内置工具",
+                "description": "",
+                "type": "builtin_tool",
+                "provider_id": "google",
+                "tool_id": "google_serper",
+                "inputs": [
+                    {
+                        "name": "query",
+                        "type": "string",
+                        "value": {
+                            "type": "ref",
+                            "content": {
+                                "ref_node_id": "18d938c4-ecd7-4a6b-9403-3625224b96cc",
+                                "ref_var_name": "query"
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "id": "e9fc1f95-1a59-4ba4-a87d-2ad349287234",
+                "node_type": "tool",
+                "title": "API工具",
+                "description": "",
+                "type": "api_tool",
+                "provider_id": "b1f71684-ac64-48fe-8c68-1a5e212f42c6",
+                "tool_id": "BilibiliHotSearch",
+                "inputs": [
+                    {
+                        "name": "limit",
+                        "type": "string",
+                        "value": {
+                            "type": "literal",
+                            "content": "3"
+                        }
+                    },
+                ]
             },
             {
                 "id": "860c8411-37ed-4872-b53f-30afa0290211",
@@ -331,7 +439,40 @@ class AppHandler:
                                 "ref_var_name": "output"
                             }
                         }
-                    }
+                    },
+                    {
+                        "name": "first_100_documents",
+                        "type": "string",
+                        "value": {
+                            "type": "ref",
+                            "content": {
+                                "ref_node_id": "4a9ed43d-e886-49f7-af9f-9e85d83b27aa",
+                                "ref_var_name": "first_100_documents",
+                            }
+                        }
+                    },
+                    {
+                        "name": "BilibiliHotSearch",
+                        "type": "string",
+                        "value": {
+                            "type": "ref",
+                            "content": {
+                                "ref_node_id": "e9fc1f95-1a59-4ba4-a87d-2ad349287234",
+                                "ref_var_name": "text"
+                            }
+                        }
+                    },
+                    {
+                        "name": "google_search_result",
+                        "type": "string",
+                        "value": {
+                            "type": "ref",
+                            "content": {
+                                "ref_node_id": "2f6cf40d-0219-421b-92ff-229fdde15ecb",
+                                "ref_var_name": "text",
+                            }
+                        }
+                    },
                 ]
             }
         ]
@@ -339,6 +480,13 @@ class AppHandler:
             "id": "51e993f4-a832-48bc-8211-59b37acf688c",
             "source": "18d938c4-ecd7-4a6b-9403-3625224b96cc",
             "source_type": "start",
+            "target": "868b5769-1925-4e7b-8aa4-af7c3d444d91",
+            "target_type": "dataset_retrieval"
+        },
+        {
+            "id": "51e993f4-a832-48bc-8211-59b37acf688c",
+            "source": "868b5769-1925-4e7b-8aa4-af7c3d444d91",
+            "source_type": "dataset_retrieval",
             "target": "eba75e0b-21b7-46ed-8d21-791724f0740f",
             "target_type": "llm"
         },
@@ -346,26 +494,48 @@ class AppHandler:
             "id": "51e993f4-a832-48bc-8211-59b37acf688c",
             "source": "eba75e0b-21b7-46ed-8d21-791724f0740f",
             "source_type": "llm",
+            "target": "4a9ed43d-e886-49f7-af9f-9e85d83b27aa",
+            "target_type": "code"
+        },
+        {
+            "id": "51e993f4-a832-48bc-8211-59b37acf688c",
+            "source": "4a9ed43d-e886-49f7-af9f-9e85d83b27aa",
+            "source_type": "code",
             "target": "623b7671-0bc2-446c-bf5e-5e25032a522e",
             "target_type": "template_transform"
         },
         {
+            "id": "51e993f4-a832-48bc-8211-59b37acf688c",
+            "source": "4a9ed43d-e886-49f7-af9f-9e85d83b27aa",
+            "source_type": "code",
+            "target": "2f6cf40d-0219-421b-92ff-229fdde15ecb",
+            "target_type": "tool"
+        },
+        {
+            "id": "51e993f4-a832-48bc-8211-59b37acf688c",
+            "source": "2f6cf40d-0219-421b-92ff-229fdde15ecb",
+            "source_type": "tool",
+            "target": "e9fc1f95-1a59-4ba4-a87d-2ad349287234",
+            "target_type": "tool"
+        },
+    {
             "id": "675fcd37-f308-8008-a6f4-389a0b1ed0ca",
-            "source": "623b7671-0bc2-446c-bf5e-5e25032a522e",
-            "source_type": "template_transform",
+            "source": "e9fc1f95-1a59-4ba4-a87d-2ad349287234",
+            "source_type": "tool",
             "target": "860c8411-37ed-4872-b53f-30afa0290211",
             "target_type": "end"
         }
         ]
 
         workflow = Workflow(workflow_config=WorkflowConfig(
+            account_id=current_user.id,
             name="workflow",
             description="工作流组件",
             nodes=nodes,
             edges=edges
         ))
 
-        res = workflow.invoke({"query": "你好", "location": "苏州"})
+        res = workflow.invoke({"query": "关于llmops配置哪些", "location": "苏州"})
 
         return success_json({
             **res,

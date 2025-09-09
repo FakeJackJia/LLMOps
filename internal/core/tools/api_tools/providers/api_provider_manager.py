@@ -1,8 +1,8 @@
 import requests
 from injector import inject
 from dataclasses import dataclass
-from pydantic import BaseModel, create_model, Field
 from langchain_core.tools import BaseTool, StructuredTool
+from langchain_core.pydantic_v1 import BaseModel, create_model, Field
 from internal.core.tools.api_tools.entities import ToolEntity, ParameterTypeMap, ParameterIn
 from typing import Type, Optional, Callable
 

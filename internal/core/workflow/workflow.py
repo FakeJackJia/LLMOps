@@ -1,4 +1,5 @@
 from typing import Any, Optional, Iterator
+from flask import current_app
 
 from langchain_core.runnables import RunnableConfig
 from langchain_core.runnables.utils import Input, Output
@@ -13,7 +14,10 @@ from .nodes import (
     StartNode,
     EndNode,
     LLMNode,
-    TemplateTransformNode
+    TemplateTransformNode,
+    DatasetRetrievalNode,
+    CodeNode,
+    ToolNode
 )
 
 # 节点类映射
@@ -21,7 +25,10 @@ NodeClasses = {
     NodeType.START: StartNode,
     NodeType.END: EndNode,
     NodeType.LLM: LLMNode,
-    NodeType.TEMPLATE_TRANSFORM: TemplateTransformNode
+    NodeType.TEMPLATE_TRANSFORM: TemplateTransformNode,
+    NodeType.DATASET_RETRIEVAL: DatasetRetrievalNode,
+    NodeType.CODE: CodeNode,
+    NodeType.TOOL: ToolNode,
 }
 
 class Workflow(BaseTool):
@@ -85,6 +92,25 @@ class Workflow(BaseTool):
                 graph.add_node(
                     node_flag,
                     NodeClasses[NodeType.TEMPLATE_TRANSFORM](node_data=node),
+                )
+            elif node.get("node_type") == NodeType.DATASET_RETRIEVAL:
+                graph.add_node(
+                    node_flag,
+                    NodeClasses[NodeType.DATASET_RETRIEVAL](
+                        flask_app=current_app._get_current_object(),
+                        account_id=self._workflow_config.account_id,
+                        node_data=node,
+                    ),
+                )
+            elif node.get("node_type") == NodeType.CODE:
+                graph.add_node(
+                    node_flag,
+                    NodeClasses[NodeType.CODE](node_data=node),
+                )
+            elif node.get("node_type") == NodeType.TOOL:
+                graph.add_node(
+                    node_flag,
+                    NodeClasses[NodeType.TOOL](node_data=node),
                 )
             elif node.get("node_type") == NodeType.END:
                 graph.add_node(
