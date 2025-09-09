@@ -222,6 +222,70 @@ class AppHandler:
                 ]
             },
             {
+                "id": "eba75e0b-21b7-46ed-8d21-791724f0740f",
+                "node_type": "llm",
+                "title": "大语言模型",
+                "description": "",
+                "inputs": [
+                    {
+                        "name": "query",
+                        "type": "string",
+                        "value": {
+                            "type": "ref",
+                            "content": {
+                                "ref_node_id": "18d938c4-ecd7-4a6b-9403-3625224b96cc",
+                                "ref_var_name": "query",
+                            },
+                        }
+                    },
+                ],
+                "prompt": (
+                    "你是一个强有力的AI机器人，请根据用户的提问回复特定的内容，用户的提问是: {{query}}"
+                ),
+                "model_config": {
+                    "provider": "openai",
+                    "model": "gpt-4o-mini",
+                    "parameters": {
+                        "temperature": 0.5,
+                        "top_p": 0.85,
+                        "frequency_penalty": 0.2,
+                        "presence_penalty": 0.2,
+                        "max_tokens": 8192,
+                    },
+                }
+            },
+            {
+                "id": "623b7671-0bc2-446c-bf5e-5e25032a522e",
+                "node_type": "template_transform",
+                "title": "模板转换",
+                "description": "",
+                "inputs": [
+                    {
+                        "name": "location",
+                        "type": "string",
+                        "value": {
+                            "type": "ref",
+                            "content": {
+                                "ref_node_id": "18d938c4-ecd7-4a6b-9403-3625224b96cc",
+                                "ref_var_name": "location",
+                            },
+                        }
+                    },
+                    {
+                        "name": "query",
+                        "type": "string",
+                        "value": {
+                            "type": "ref",
+                            "content": {
+                                "ref_node_id": "18d938c4-ecd7-4a6b-9403-3625224b96cc",
+                                "ref_var_name": "query"
+                            }
+                        }
+                    }
+                ],
+                "template": "地址: {{location}}\n提问内容: {{query}}",
+            },
+            {
                 "id": "860c8411-37ed-4872-b53f-30afa0290211",
                 "node_type": "end",
                 "title": "结束",
@@ -256,6 +320,17 @@ class AppHandler:
                             "type": "literal",
                             "content": "jack"
                         }
+                    },
+                    {
+                        "name": "template_combine",
+                        "type": "string",
+                        "value": {
+                            "type": "ref",
+                            "content": {
+                                "ref_node_id": "623b7671-0bc2-446c-bf5e-5e25032a522e",
+                                "ref_var_name": "output"
+                            }
+                        }
                     }
                 ]
             }
@@ -264,9 +339,24 @@ class AppHandler:
             "id": "51e993f4-a832-48bc-8211-59b37acf688c",
             "source": "18d938c4-ecd7-4a6b-9403-3625224b96cc",
             "source_type": "start",
+            "target": "eba75e0b-21b7-46ed-8d21-791724f0740f",
+            "target_type": "llm"
+        },
+        {
+            "id": "51e993f4-a832-48bc-8211-59b37acf688c",
+            "source": "eba75e0b-21b7-46ed-8d21-791724f0740f",
+            "source_type": "llm",
+            "target": "623b7671-0bc2-446c-bf5e-5e25032a522e",
+            "target_type": "template_transform"
+        },
+        {
+            "id": "675fcd37-f308-8008-a6f4-389a0b1ed0ca",
+            "source": "623b7671-0bc2-446c-bf5e-5e25032a522e",
+            "source_type": "template_transform",
             "target": "860c8411-37ed-4872-b53f-30afa0290211",
             "target_type": "end"
-        }]
+        }
+        ]
 
         workflow = Workflow(workflow_config=WorkflowConfig(
             name="workflow",
@@ -275,7 +365,7 @@ class AppHandler:
             edges=edges
         ))
 
-        res = workflow.invoke({"query": "你好"})
+        res = workflow.invoke({"query": "你好", "location": "苏州"})
 
         return success_json({
             **res,
