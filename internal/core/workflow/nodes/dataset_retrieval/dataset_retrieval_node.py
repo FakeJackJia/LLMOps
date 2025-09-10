@@ -8,8 +8,8 @@ from langchain_core.pydantic_v1 import PrivateAttr
 
 from internal.core.workflow.nodes import BaseNode
 from internal.core.workflow.entities.workflow_entity import WorkflowState
-from internal.core.workflow.entities.variable_entity import VariableValueType, VariableTypeDefaultValueMap
 from internal.core.workflow.entities.node_entity import NodeResult, NodeStatus
+from internal.core.workflow.utils.helper import extract_variables_from_state
 
 from .dataset_retrieval_entity import DatasetRetrievalNodeData
 
@@ -44,18 +44,7 @@ class DatasetRetrievalNode(BaseNode):
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """执行相应的知识库检索后返回"""
-        query_input = self.node_data.inputs[0]
-
-        inputs_dict = {}
-        if query_input.value.type == VariableValueType.LITERAL:
-            inputs_dict[query_input.name] = query_input.value.content
-        else:
-            for node_result in state["node_results"]:
-                if node_result.node_data.id == query_input.value.content.ref_node_id:
-                    inputs_dict[query_input.name] = node_result.outputs.get(
-                        query_input.value.content.ref_var_name,
-                        VariableTypeDefaultValueMap.get(query_input.type)
-                    )
+        inputs_dict = extract_variables_from_state(self.node_data.inputs, state)
 
         combine_documents = self._retrieval_tool.invoke(inputs_dict)
 

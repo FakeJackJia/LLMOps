@@ -5,6 +5,7 @@ from internal.entity.app_entity import DEFAULT_APP_CONFIG
 from internal.core.workflow.entities.variable_entity import VariableEntity, VariableValueType
 
 from langchain_core.pydantic_v1 import Field
+
 class LLMNodeData(BaseNodeData):
     """大语言模型节点数据"""
     prompt: str # 大语言模型节点提示词

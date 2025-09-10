@@ -6,6 +6,7 @@ from .template_transform.template_transform_node import TemplateTransformNode
 from .dataset_retrieval.dataset_retrieval_node import DatasetRetrievalNode
 from .code.code_node import CodeNode
 from .tool.tool_node import ToolNode
+from .http_request.http_request_node import HttpRequestNode
 
 __all__= [
     "BaseNode",
@@ -15,5 +16,6 @@ __all__= [
     "TemplateTransformNode",
     "DatasetRetrievalNode",
     "CodeNode",
-    "ToolNode"
+    "ToolNode",
+    "HttpRequestNode"
 ]

@@ -6,8 +6,9 @@ from langchain_core.runnables import RunnableConfig
 from internal.core.workflow.entities.workflow_entity import WorkflowState
 from internal.core.workflow.nodes import BaseNode
 from internal.core.workflow.entities.node_entity import NodeResult, NodeStatus
-from internal.core.workflow.entities.variable_entity import VariableValueType, VariableTypeDefaultValueMap
+from internal.core.workflow.entities.variable_entity import VARIABLE_TYPE_DEFAULT_VALUE_MAP
 from internal.exception import FailException
+from internal.core.workflow.utils.helper import extract_variables_from_state
 
 from .code_entity import CodeNodeData
 
@@ -17,19 +18,7 @@ class CodeNode(BaseNode):
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """python执行的代码函数名字必须为main, 并且参数名为params"""
-        inputs = self.node_data.inputs
-
-        inputs_dict = {}
-        for input in inputs:
-            if input.value.type == VariableValueType.LITERAL:
-                inputs_dict[input.name] = input.value.content
-            else:
-                for node_result in state["node_results"]:
-                    if node_result.node_data.id == input.value.content.ref_node_id:
-                        inputs_dict[input.name] = node_result.outputs.get(
-                            input.value.content.ref_var_name,
-                            VariableTypeDefaultValueMap.get(input.type)
-                        )
+        inputs_dict = extract_variables_from_state(self.node_data.inputs, state)
 
         # todo: 执行Python代码, 该方法目前有风险, 需迁移至沙箱里
         result = self._execute_function(self.node_data.code, params=inputs_dict)
@@ -43,7 +32,7 @@ class CodeNode(BaseNode):
             # (非严格校验)
             outputs_dict[output.name] = result.get(
                 output.name,
-                VariableTypeDefaultValueMap.get(output.type)
+                VARIABLE_TYPE_DEFAULT_VALUE_MAP.get(output.type)
             )
 
         return {

@@ -1,13 +1,17 @@
 import os
 from injector import inject
 from dataclasses import dataclass
+
 from langchain_community.storage import RedisStore
 from langchain_core.embeddings import Embeddings
 from langchain.embeddings import CacheBackedEmbeddings
-from redis import Redis
-from langchain_openai import OpenAIEmbeddings
-import tiktoken
 from langchain_huggingface import HuggingFaceEmbeddings
+
+from redis import Redis
+import tiktoken
+from transformers import logging
+
+logging.set_verbosity_error()
 
 @inject
 @dataclass
@@ -24,7 +28,7 @@ class EmbeddingsService:
             model_name="Alibaba-NLP/gte-multilingual-base",
             cache_folder=os.path.join(os.getcwd(), "internal", "core", "embeddings"),
             model_kwargs={
-                "trust_remote_code": True,
+                "trust_remote_code": True
             }
         )
         #self._embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
