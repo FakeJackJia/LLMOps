@@ -7,6 +7,8 @@ from langchain_core.tools import BaseTool
 from langchain_core.pydantic_v1 import PrivateAttr, BaseModel, Field, create_model
 from langgraph.graph.state import CompiledStateGraph, StateGraph
 
+from internal.exception import ValidateErrorException
+
 from .entities.node_entity import NodeType
 from .entities.variable_entity import VARIABLE_TYPE_MAP
 from .entities.workflow_entity import WorkflowConfig, WorkflowState
@@ -55,14 +57,14 @@ class Workflow(BaseTool):
         """构建输入参数结构"""
         fields = {}
         inputs = next(
-            (node.get("inputs", []) for node in workflow_config.nodes if node.get("node_type") == NodeType.START),
+            (node.inputs for node in workflow_config.nodes if node.node_type == NodeType.START),
             []
         )
         for input in inputs:
-            field_name = input.get("name")
-            field_type = VARIABLE_TYPE_MAP.get(input.get("type"), str)
-            field_required = input.get("required", True)
-            field_description = input.get("description", "")
+            field_name = input.name
+            field_type = VARIABLE_TYPE_MAP.get(input.type, str)
+            field_required = input.required
+            field_description = input.description
 
             fields[field_name] = (
                 field_type if field_required else Optional[field_type],
@@ -79,23 +81,23 @@ class Workflow(BaseTool):
         edges = self._workflow_config.edges
 
         for node in nodes:
-            node_flag = f"{node.get('node_type')}_{node.get('id')}"
-            if node.get("node_type") == NodeType.START:
+            node_flag = f"{node.node_type.value}_{node.id}"
+            if node.node_type == NodeType.START:
                 graph.add_node(
                     node_flag,
                     NodeClasses[NodeType.START](node_data=node),
                 )
-            elif node.get("node_type") == NodeType.LLM:
+            elif node.node_type == NodeType.LLM:
                 graph.add_node(
                     node_flag,
                     NodeClasses[NodeType.LLM](node_data=node),
                 )
-            elif node.get("node_type") == NodeType.TEMPLATE_TRANSFORM:
+            elif node.node_type == NodeType.TEMPLATE_TRANSFORM:
                 graph.add_node(
                     node_flag,
                     NodeClasses[NodeType.TEMPLATE_TRANSFORM](node_data=node),
                 )
-            elif node.get("node_type") == NodeType.DATASET_RETRIEVAL:
+            elif node.node_type == NodeType.DATASET_RETRIEVAL:
                 graph.add_node(
                     node_flag,
                     NodeClasses[NodeType.DATASET_RETRIEVAL](
@@ -104,44 +106,46 @@ class Workflow(BaseTool):
                         node_data=node,
                     ),
                 )
-            elif node.get("node_type") == NodeType.CODE:
+            elif node.node_type == NodeType.CODE:
                 graph.add_node(
                     node_flag,
                     NodeClasses[NodeType.CODE](node_data=node),
                 )
-            elif node.get("node_type") == NodeType.TOOL:
+            elif node.node_type == NodeType.TOOL:
                 graph.add_node(
                     node_flag,
                     NodeClasses[NodeType.TOOL](node_data=node),
                 )
-            elif node.get("node_type") == NodeType.HTTP_REQUEST:
+            elif node.node_type == NodeType.HTTP_REQUEST:
                 graph.add_node(
                     node_flag,
                     NodeClasses[NodeType.HTTP_REQUEST](node_data=node),
                 )
-            elif node.get("node_type") == NodeType.END:
+            elif node.node_type == NodeType.END:
                 graph.add_node(
                     node_flag,
                     NodeClasses[NodeType.END](node_data=node),
                 )
+            else:
+                raise ValidateErrorException("工作流节点类型错误")
 
         parallel_edges = {} # key: 终点, value: 起点列表
         start_node = ""
         end_node = ""
         for edge in edges:
             # 计算并获取并行边
-            source_node = f"{edge.get('source_type')}_{edge.get('source')}"
-            target_node = f"{edge.get('target_type')}_{edge.get('target')}"
+            source_node = f"{edge.source_type.value}_{edge.source}"
+            target_node = f"{edge.target_type.value}_{edge.target}"
 
             if target_node not in parallel_edges:
                 parallel_edges[target_node] = [source_node]
             else:
                 parallel_edges[target_node].append(source_node)
 
-            if edge.get('source_type') == NodeType.START:
-                start_node = f"{edge.get('source_type')}_{edge.get('source')}"
-            elif edge.get('target_type') == NodeType.END:
-                end_node = f"{edge.get('target_type')}_{edge.get('target')}"
+            if edge.source_type == NodeType.START:
+                start_node = source_node
+            elif edge.target_type == NodeType.END:
+                end_node = target_node
 
         graph.set_entry_point(start_node)
         graph.set_finish_point(end_node)

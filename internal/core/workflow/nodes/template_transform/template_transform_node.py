@@ -13,7 +13,7 @@ from .template_transform_entity import TemplateTransformNodeData
 
 class TemplateTransformNode(BaseNode):
     """模板转换节点, 将多个变量信息合并成一个"""
-    _node_data_cls = TemplateTransformNodeData
+    node_data: TemplateTransformNodeData
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """模板转换节点, 将传递的多个变量合并成字符串返回"""

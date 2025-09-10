@@ -17,12 +17,12 @@ from .tool_entity import ToolNodeData
 
 class ToolNode(BaseNode):
     """工具节点"""
-    _node_data_cls = ToolNodeData
+    node_data: ToolNodeData
     _tool: BaseTool = PrivateAttr(None)
 
-    def __init__(self, *args: Any, node_data: dict[str, Any], **kwargs: Any):
+    def __init__(self, *args: Any, **kwargs: Any):
         """构造函数, 完成工具的初始化"""
-        super().__init__(*args, node_data=node_data, **kwargs)
+        super().__init__(*args, **kwargs)
 
         from app.http.module import injector
 

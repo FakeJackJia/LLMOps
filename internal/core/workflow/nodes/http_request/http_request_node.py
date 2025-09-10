@@ -16,7 +16,7 @@ from .http_request_entity import (
 
 class HttpRequestNode(BaseNode):
     """HTTP请求节点"""
-    _node_data_cls = HttpRequestNodeData
+    node_data: HttpRequestNodeData
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """向指定URL发起请求并获取响应"""

@@ -11,7 +11,7 @@ from .end_entity import EndNodeData
 
 class EndNode(BaseNode):
     """结束节点"""
-    _node_data_cls = EndNodeData
+    node_data: EndNodeData
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """结束节点结束函数, 提取出状态中需要展示的数据, 并更新outputs"""

@@ -14,7 +14,7 @@ from .code_entity import CodeNodeData
 
 class CodeNode(BaseNode):
     """Python代码运行节点"""
-    _node_data_cls = CodeNodeData
+    node_data: CodeNodeData
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """python执行的代码函数名字必须为main, 并且参数名为params"""

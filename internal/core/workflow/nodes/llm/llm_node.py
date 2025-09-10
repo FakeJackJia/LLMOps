@@ -13,7 +13,7 @@ from .llm_entity import LLMNodeData
 
 class LLMNode(BaseNode):
     """大语言模型节点"""
-    _node_data_cls = LLMNodeData
+    node_data: LLMNodeData
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """大语言模型节点, 根据输入的字段+预设prompt生成对应内容后输出"""

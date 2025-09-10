@@ -16,7 +16,7 @@ from .dataset_retrieval_entity import DatasetRetrievalNodeData
 
 class DatasetRetrievalNode(BaseNode):
     """知识库检索节点"""
-    _node_data_cls = DatasetRetrievalNodeData
+    node_data: DatasetRetrievalNodeData
     _retrieval_tool: BaseTool = PrivateAttr(None)
 
     def __init__(
@@ -24,11 +24,10 @@ class DatasetRetrievalNode(BaseNode):
             *args: Any,
             flask_app: Flask,
             account_id: UUID,
-            node_data: dict[str, Any],
             **kwargs: Any
     ):
         """构造函数, 完成节点的初始化"""
-        super().__init__(*args, node_data=node_data, **kwargs)
+        super().__init__(*args, **kwargs)
 
         from app.http.module import injector
         from internal.service import RetrievalService
