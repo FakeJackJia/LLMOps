@@ -6,25 +6,16 @@ from .conversation import Conversation, Message, MessageAgentThought
 from .account import Account, AccountOAuth
 from .api_key import ApiKey
 from .end_user import EndUser
+from .workflow import Workflow, WorkflowResult
 
 __all__ = [
-    "App",
-    "ApiToolProvider",
-    "ApiTool",
+    "App", "AppDatasetJoin", "AppConfig", "AppConfigVersion",
+    "ApiToolProvider", "ApiTool",
     "UploadFile",
-    "Dataset",
-    "Document",
-    "Segment",
-    "KeywordTable",
-    "DatasetQuery",
-    "ProcessRule",
-    "Conversation",
-    "Message",
-    "MessageAgentThought",
-    "Account",
-    "AccountOAuth",
-    "AppConfig",
-    "AppConfigVersion",
+    "Dataset", "Document", "Segment", "KeywordTable", "DatasetQuery", "ProcessRule",
+    "Conversation", "Message", "MessageAgentThought",
+    "Account", "AccountOAuth",
     "ApiKey",
-    "EndUser"
+    "EndUser",
+    "Workflow", "WorkflowResult"
 ]
