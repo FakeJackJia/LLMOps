@@ -144,7 +144,7 @@ class Workflow(BaseTool):
 
             if edge.source_type == NodeType.START:
                 start_node = source_node
-            elif edge.target_type == NodeType.END:
+            if edge.target_type == NodeType.END:
                 end_node = target_node
 
         graph.set_entry_point(start_node)

@@ -115,7 +115,7 @@ class AppService(BaseService):
         """根据传递的分页参数获取当前登录账号下的应用分页列表数据"""
         paginator = Paginator(db=self.db, req=req)
 
-        filters = []
+        filters = [App.account_id == account.id]
         if req.search_word.data:
             filters.append(App.name.ilike(f"%{req.search_word.data}%"))
 
