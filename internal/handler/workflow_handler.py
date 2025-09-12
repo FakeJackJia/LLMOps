@@ -14,7 +14,7 @@ from internal.schema.workflow_schema import (
 )
 
 from internal.service import WorkflowService
-from pkg.response import validate_error_json, success_message, success_json
+from pkg.response import validate_error_json, success_message, success_json, compact_generate_response
 from pkg.paginator import PageModel
 
 @inject
@@ -82,3 +82,23 @@ class WorkflowHandler:
         """获取指定工作流草稿配置"""
         draft_graph = self.workflow_service.get_draft_graph(workflow_id, current_user)
         return success_json(draft_graph)
+
+    @login_required
+    def debug_workflow(self, workflow_id: UUID):
+        """调试指定工作流"""
+        inputs = request.get_json(force=True, silent=True) or {}
+
+        response = self.workflow_service.debug_workflow(workflow_id, inputs, current_user)
+        return compact_generate_response(response)
+
+    @login_required
+    def publish_workflow(self, workflow_id: UUID):
+        """发布指定工作流"""
+        self.workflow_service.publish_workflow(workflow_id, current_user)
+        return success_message("发布工作流成功")
+
+    @login_required
+    def cancel_publish_workflow(self, workflow_id: UUID):
+        """取消发布指定工作流"""
+        self.workflow_service.cancel_publish_workflow(workflow_id, current_user)
+        return success_message("取消工作流成功")

@@ -1,3 +1,5 @@
+import time
+
 import requests
 from typing import Optional
 
@@ -20,6 +22,7 @@ class HttpRequestNode(BaseNode):
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """向指定URL发起请求并获取响应"""
+        start_at = time.perf_counter()
         _inputs_dict = extract_variables_from_state(self.node_data.inputs, state)
 
         inputs_dict = {
@@ -67,7 +70,8 @@ class HttpRequestNode(BaseNode):
                     node_data=self.node_data,
                     status=NodeStatus.SUCCEEDED,
                     inputs=inputs_dict,
-                    outputs=outputs
+                    outputs=outputs,
+                    latency=(time.perf_counter() - start_at)
                 )
             ]
         }

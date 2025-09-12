@@ -1,16 +1,26 @@
+import json
+import time
+import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Generator
 from uuid import UUID
 from injector import inject
 from sqlalchemy import desc
 from flask import request
 
 from internal.schema.workflow_schema import CreateWorkflowReq, GetWorkflowsWithPageReq
-from internal.model import Account, Workflow, ApiTool, Dataset
-from internal.exception import ValidateErrorException, NotFoundException, ForbiddenException
-from internal.entity.workflow_entity import DEFAULT_WORKFLOW_CONFIG, WorkflowStatus
+from internal.model import Account, Workflow, ApiTool, Dataset, WorkflowResult
+from internal.exception import (
+    ValidateErrorException,
+    NotFoundException,
+    ForbiddenException,
+    FailException
+)
+from internal.entity.workflow_entity import DEFAULT_WORKFLOW_CONFIG, WorkflowStatus, WorkflowResultStatus
 from internal.core.workflow.entities.node_entity import NodeType
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
+from internal.core.workflow import Workflow as WorkflowTool
+from internal.core.workflow.entities.workflow_entity import WorkflowConfig
 
 from .base_service import BaseService
 
@@ -185,3 +195,96 @@ class WorkflowService(BaseService):
                 }
 
         return draft_graph
+
+    def debug_workflow(self, workflow_id: UUID, inputs: dict[str, Any], account: Account) -> Generator:
+        """调试工作流"""
+        workflow = self.get_workflow(workflow_id, account)
+
+        workflow_tool = WorkflowTool(workflow_config=WorkflowConfig(
+            account_id=account.id,
+            name=workflow.tool_call_name,
+            description=workflow.description,
+            nodes=workflow.draft_graph.get("nodes", []),
+            edges=workflow.draft_graph.get("edges", [])
+        ))
+
+        def handle_stream() -> Generator:
+            node_results = []
+
+            workflow_result = self.create(WorkflowResult, **{
+                "app_id": None,
+                "account_id": account.id,
+                "workflow_id": workflow.id,
+                "graph": workflow.draft_graph,
+                "state": [],
+                "latency": 0,
+                "status": WorkflowResultStatus.RUNNING
+            })
+
+            start_at = time.perf_counter()
+            try:
+                for chunk in workflow_tool.stream(inputs):
+                    # chunk的格式为{"node_name": WorkflowState}
+                    first_key = next(iter(chunk))
+
+                    node_result = chunk[first_key]["node_results"][0]
+                    node_result_dict = node_result.json()
+                    node_result_dict = json.loads(node_result_dict)
+                    node_results.append(node_result_dict)
+
+                    data = {
+                        "id": str(uuid.uuid4()),
+                        **node_result_dict
+                    }
+                    yield f"event: workflow\ndata: {json.dumps(data)}\n\n"
+
+                self.update(workflow_result, **{
+                    "status": WorkflowResultStatus.SUCCEEDED,
+                    "state": node_results,
+                    "latency": (time.perf_counter() - start_at)
+                })
+                self.update(workflow, **{
+                    "is_debug_passed": True
+                })
+            except Exception:
+                self.update(workflow_result, **{
+                    "status": WorkflowResultStatus.FAILED,
+                    "state": node_results,
+                    "latency": (time.perf_counter() - start_at)
+                })
+
+        return handle_stream()
+
+    def publish_workflow(self, workflow_id: UUID, account: Account) -> Workflow:
+        """发布工作流"""
+        workflow = self.get_workflow(workflow_id, account)
+
+        if not workflow.is_debug_passed:
+            raise FailException("该工作流未调试通过")
+        if workflow.status == WorkflowStatus.PUBLISHED:
+            raise FailException("该工作流已发布")
+
+        try:
+            WorkflowConfig(
+                account_id=account.id,
+                name=workflow.tool_call_name,
+                description=workflow.description,
+                nodes=workflow.draft_graph.get("nodes", []),
+                edges=workflow.draft_graph.get("edges", [])
+            )
+        except Exception:
+            self.update(workflow, is_debug_passed=False)
+            raise ValidateErrorException("工作流配置校验失败")
+
+        self.update(workflow, graph=workflow.draft_graph, status=WorkflowStatus.PUBLISHED)
+        return workflow
+
+    def cancel_publish_workflow(self, workflow_id: UUID, account: Account) -> Workflow:
+        """取消发布工作流"""
+        workflow = self.get_workflow(workflow_id, account)
+
+        if workflow.status == WorkflowStatus.DRAFT:
+            raise FailException("该工作流已经未发布")
+
+        self.update(workflow, graph={}, status=WorkflowStatus.DRAFT, is_debug_passed=False)
+        return workflow

@@ -1,3 +1,4 @@
+import time
 from typing import Optional, Any
 from uuid import UUID
 
@@ -43,6 +44,7 @@ class DatasetRetrievalNode(BaseNode):
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """执行相应的知识库检索后返回"""
+        start_at = time.perf_counter()
         inputs_dict = extract_variables_from_state(self.node_data.inputs, state)
 
         combine_documents = self._retrieval_tool.invoke(inputs_dict)
@@ -59,7 +61,8 @@ class DatasetRetrievalNode(BaseNode):
                     node_data=self.node_data,
                     status=NodeStatus.SUCCEEDED,
                     inputs=inputs_dict,
-                    outputs=outputs
+                    outputs=outputs,
+                    latency=(time.perf_counter() - start_at)
                 )
             ]
         }

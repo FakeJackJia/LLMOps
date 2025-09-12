@@ -1,3 +1,4 @@
+import time
 from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
@@ -15,6 +16,7 @@ class EndNode(BaseNode):
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """结束节点结束函数, 提取出状态中需要展示的数据, 并更新outputs"""
+        start_at = time.perf_counter()
         outputs_dict = extract_variables_from_state(self.node_data.outputs, state)
 
         return {
@@ -24,7 +26,8 @@ class EndNode(BaseNode):
                     node_data=self.node_data,
                     status=NodeStatus.SUCCEEDED,
                     inputs={},
-                    outputs=outputs_dict
+                    outputs=outputs_dict,
+                    latency=(time.perf_counter() - start_at)
                 )
             ]
         }

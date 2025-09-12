@@ -1,4 +1,5 @@
 import ast
+import time
 from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
@@ -18,6 +19,7 @@ class CodeNode(BaseNode):
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """python执行的代码函数名字必须为main, 并且参数名为params"""
+        start_at = time.perf_counter()
         inputs_dict = extract_variables_from_state(self.node_data.inputs, state)
 
         # todo: 执行Python代码, 该方法目前有风险, 需迁移至沙箱里
@@ -41,7 +43,8 @@ class CodeNode(BaseNode):
                     node_data=self.node_data,
                     status=NodeStatus.SUCCEEDED,
                     inputs=inputs_dict,
-                    outputs=outputs_dict
+                    outputs=outputs_dict,
+                    latency=(time.perf_counter() - start_at)
                 )
             ]
         }

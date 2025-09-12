@@ -44,4 +44,5 @@ class NodeResult(BaseModel):
     status: NodeStatus = NodeStatus.RUNNING # 节点运行状态
     inputs: dict[str, Any] = Field(default_factory=dict) # 节点输入数据
     outputs: dict[str, Any] = Field(default_factory=dict) # 节点输出数据
+    latency: float = 0 # 节点响应耗时
     error: str = "" # 节点运行错误信息

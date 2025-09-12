@@ -1,4 +1,5 @@
 import json
+import time
 from typing import Optional, Any
 
 from langchain_core.pydantic_v1 import PrivateAttr
@@ -61,6 +62,7 @@ class ToolNode(BaseNode):
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """根据传递的信息调用预设的工具, 涵盖内置和自定义工具"""
+        start_at = time.perf_counter()
         inputs_dict = extract_variables_from_state(self.node_data.inputs, state)
 
         try:
@@ -83,7 +85,8 @@ class ToolNode(BaseNode):
                     node_data=self.node_data,
                     status=NodeStatus.SUCCEEDED,
                     inputs=inputs_dict,
-                    outputs=outputs
+                    outputs=outputs,
+                    latency=(time.perf_counter() - start_at)
                 )
             ]
         }

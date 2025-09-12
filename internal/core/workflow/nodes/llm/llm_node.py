@@ -1,3 +1,5 @@
+import time
+
 from jinja2 import Template
 from typing import Optional
 
@@ -17,6 +19,7 @@ class LLMNode(BaseNode):
 
     def invoke(self, state: WorkflowState, config: Optional[RunnableConfig] = None) -> WorkflowState:
         """大语言模型节点, 根据输入的字段+预设prompt生成对应内容后输出"""
+        start_at = time.perf_counter()
         inputs_dict = extract_variables_from_state(self.node_data.inputs, state)
 
         # 使用jinja2格式模板信息
@@ -29,7 +32,10 @@ class LLMNode(BaseNode):
             **self.node_data.language_model_config.get("parameters", {})
         )
 
-        content = llm.invoke(prompt_value).content
+
+        content = ""
+        for chunk in llm.stream(prompt_value):
+            content += chunk.content
 
         outputs = {}
         if self.node_data.outputs:
@@ -43,7 +49,8 @@ class LLMNode(BaseNode):
                     node_data=self.node_data,
                     status=NodeStatus.SUCCEEDED,
                     inputs=inputs_dict,
-                    outputs=outputs
+                    outputs=outputs,
+                    latency=(time.perf_counter() - start_at)
                 )
             ]
         }
