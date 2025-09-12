@@ -144,6 +144,8 @@ class Router:
         bp.add_url_rule("/workflows/<uuid:workflow_id>", view_func=self.workflow_handler.get_workflow)
         bp.add_url_rule("/workflows/<uuid:workflow_id>", methods=["POST"], view_func=self.workflow_handler.update_workflow)
         bp.add_url_rule("/workflows/<uuid:workflow_id>/delete", methods=["POST"], view_func=self.workflow_handler.delete_workflow)
+        bp.add_url_rule("/workflows/<uuid:workflow_id>/draft-graph", methods=["POST"], view_func=self.workflow_handler.update_draft_graph)
+        bp.add_url_rule("/workflows/<uuid:workflow_id>/draft-graph", view_func=self.workflow_handler.get_draft_graph)
 
         # 在应用上去注册蓝图
         app.register_blueprint(bp)

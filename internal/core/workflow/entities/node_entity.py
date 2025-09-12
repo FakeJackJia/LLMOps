@@ -17,10 +17,20 @@ class NodeType(str, Enum):
 
 class BaseNodeData(BaseModel):
     """基础节点数据"""
+
+    class Position(BaseModel):
+        """节点坐标"""
+        x: float = 0
+        y: float = 0
+
+    class Config:
+        allow_population_by_field_name = True # 允许通过字段名赋值
+
     id: UUID # 节点id, 必须唯一
     node_type: NodeType # 节点类型
     title: str = "" # 节点标题, 必须唯一
     description: str = "" # 节点描述
+    position: Position = Field(default_factory=Position) # 节点坐标
 
 class NodeStatus(str, Enum):
     """节点状态"""

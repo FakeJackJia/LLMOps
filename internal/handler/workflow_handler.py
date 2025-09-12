@@ -68,3 +68,17 @@ class WorkflowHandler:
 
         resp = GetWorkflowsWithPageResp(many=True)
         return success_json(PageModel(list=resp.dump(workflows), paginator=paginator))
+
+    @login_required
+    def update_draft_graph(self, workflow_id: UUID):
+        """更新工作流草稿"""
+        draft_graph_dict = request.get_json(force=True, silent=True) or {"nodes": [], "edges": []}
+
+        self.workflow_service.update_draft_graph(workflow_id, draft_graph_dict, current_user)
+        return success_message("更新工作流草稿配置成功")
+
+    @login_required
+    def get_draft_graph(self, workflow_id: UUID):
+        """获取指定工作流草稿配置"""
+        draft_graph = self.workflow_service.get_draft_graph(workflow_id, current_user)
+        return success_json(draft_graph)
