@@ -153,7 +153,7 @@ class WorkflowService(BaseService):
                             "params": params if params else {},
                         }
                     }
-                else:
+                elif node.get("tool_type") == "api_tool":
                     tool_record = self.db.session.query(ApiTool).filter(
                         ApiTool.provider_id == node.get("provider_id"),
                         ApiTool.name == node.get("tool_id"),
@@ -177,6 +177,24 @@ class WorkflowService(BaseService):
                             "name": tool_record.name,
                             "label": tool_record.name,
                             "description": tool_record.description,
+                            "params": {},
+                        },
+                    }
+                else:
+                    node["meta"] = {
+                        "type": "api_tool",
+                        "provider": {
+                            "id": "",
+                            "name": "",
+                            "label": "",
+                            "icon": "",
+                            "description": "",
+                        },
+                        "tool": {
+                            "id": "",
+                            "name": "",
+                            "label": "",
+                            "description": "",
                             "params": {},
                         },
                     }
@@ -261,8 +279,6 @@ class WorkflowService(BaseService):
 
         if not workflow.is_debug_passed:
             raise FailException("该工作流未调试通过")
-        if workflow.status == WorkflowStatus.PUBLISHED:
-            raise FailException("该工作流已发布")
 
         try:
             WorkflowConfig(

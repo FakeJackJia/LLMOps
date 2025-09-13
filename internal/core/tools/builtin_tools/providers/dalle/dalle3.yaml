@@ -1,4 +1,4 @@
-name: dalle
+name: dalle3
 label: DALLE-3绘图工具
 description: DALLE-3是一个将文本转成图片的绘图工具
 params:

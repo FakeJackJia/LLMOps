@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 from langchain_core.pydantic_v1 import Field, validator, HttpUrl
 
@@ -24,7 +25,7 @@ class HttpRequestInputType(str, Enum):
 
 class HttpRequestNodeData(BaseNodeData):
     """HTTP请求节点数据"""
-    url: HttpUrl = ""
+    url: Optional[HttpUrl] = None
     method: HttpRequestMethod = HttpRequestMethod.GET
     inputs: list[VariableEntity] = Field(default_factory=list)
     outputs: list[VariableEntity] = Field(
@@ -38,6 +39,11 @@ class HttpRequestNodeData(BaseNodeData):
             VariableEntity(name="text", value={"type": VariableValueType.GENERATED})
         ]
     )
+
+    @validator("url", pre=True, always=True)
+    def validate_url(cls, url: Optional[HttpUrl]):
+        """校验url"""
+        return url if url != "" else None
 
     @validator("inputs")
     def validate_inputs(cls, inputs: list[VariableEntity]) -> list[VariableEntity]:
