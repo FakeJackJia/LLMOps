@@ -190,13 +190,13 @@ class AppHandler:
 
     @login_required
     def ping(self):
-        provider = self.language_model_manager.get_provider("tongyi")
-        model_entity = provider.get_model_entity("qwen-max")
+        provider = self.language_model_manager.get_provider("ollama")
+        model_entity = provider.get_model_entity("qwen2.5-7b")
         model_cls = provider.get_model_class(model_entity.model_type)
         llm = model_cls(**{
             **model_entity.attributes,
             "features": model_entity.features,
-            "metadata": model_entity.meta_data
+            "metadata": model_entity.metadata
         })
         return success_json({
             "content": llm.invoke("你好 你是").content,

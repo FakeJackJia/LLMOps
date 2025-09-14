@@ -12,3 +12,10 @@
   background: "#FFFFFF"
   supported_model_types:
     - chat
+- name: ollama
+  label: Ollama
+  description: Ollama提供的本地离线的模型, 例如qwen2.5-7b
+  icon: icon.svg
+  background: "#F9FAFB"
+  supported_model_types:
+    - chat

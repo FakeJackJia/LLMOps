@@ -107,7 +107,7 @@ class AgentQueueManager:
 
         if not q:
             # 判断用户的类型生成不同的缓存键前缀(debugger/app/service_api)
-            user_prefix = "account" if self.invoke_from in [InvokeFrom.DEBUGGER, InvokeFrom.WEB_APP] else "end-user"
+            user_prefix = "account" if self.invoke_from in [InvokeFrom.DEBUGGER, InvokeFrom.WEB_APP, InvokeFrom.ASSISTANT_AGENT] else "end-user"
 
             # 设置任务对应的缓存键
             self.redis_client.setex(
@@ -131,7 +131,7 @@ class AgentQueueManager:
         if not result:
             return
 
-        user_prefix = "account" if invoke_from in [InvokeFrom.DEBUGGER, InvokeFrom.WEB_APP] else "end-user"
+        user_prefix = "account" if invoke_from in [InvokeFrom.DEBUGGER, InvokeFrom.WEB_APP, InvokeFrom.ASSISTANT_AGENT] else "end-user"
         if result.decode("utf-8") != f"{user_prefix}-{str(user_id)}":
             return
 
