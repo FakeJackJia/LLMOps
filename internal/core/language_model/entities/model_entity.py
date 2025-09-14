@@ -55,10 +55,10 @@ class ModelEntity(BaseModel):
     model_type: ModelType = ModelType.CHAT # 模型类型
     features: list[ModelFeature] = Field(default_factory=list) # 模型特性
     context_window: int = 0 # 上下文窗口长度(输入+输出的总长度)
-    max_output_token: int = 0 # 最大输出内容长度
+    max_output_tokens: int = 0 # 最大输出内容长度
     attributes: dict[str, Any] = Field(default_factory=dict) # 模型固定属性字典
     parameters: list[ModelParameters] = Field(default_factory=list) # 模型参数字段规则列表
-    meta_data: dict[str, Any] = Field(default_factory=dict) # 模型元数据, 记录价格, 词表等信息
+    metadata: dict[str, Any] = Field(default_factory=dict) # 模型元数据, 记录价格, 词表等信息
 
 class BaseLanguageModel(LCBaseLanguageModel, ABC):
     """基础语言模型"""

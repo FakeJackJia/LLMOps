@@ -13,6 +13,7 @@ from .api_key_handler import ApiKeyHandler
 from .openapi_handler import OpenAPIHandler
 from .builtin_app_handler import BuiltinAppHandler
 from .workflow_handler import WorkflowHandler
+from .language_model_handler import LanguageModelHandler
 
 __all__ = [
     "AppHandler",
@@ -29,5 +30,6 @@ __all__ = [
     "ApiKeyHandler",
     "OpenAPIHandler",
     "BuiltinAppHandler",
-    "WorkflowHandler"
+    "WorkflowHandler",
+    "LanguageModelHandler"
 ]
