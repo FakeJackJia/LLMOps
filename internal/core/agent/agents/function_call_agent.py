@@ -4,6 +4,7 @@ import re
 import time
 import uuid
 from typing import Literal
+
 from langchain_core.messages import (
     AIMessage,
     HumanMessage,
@@ -14,13 +15,15 @@ from langchain_core.messages import (
 )
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.graph import StateGraph, END
-from .base_agent import BaseAgent
+
 from internal.core.agent.entities.agent_entity import (
     AgentState,
     DATASET_RETRIEVAL_TOOL_NAME,
     MAX_ITERATION_RESPONSE,
 )
 from internal.core.agent.entities.queue_entity import AgentThought, QueueEvent
+from internal.core.language_model.entities.model_entity import ModelFeature
+from .base_agent import BaseAgent
 
 class FunctionCallAgent(BaseAgent):
     """基于函数/工具调用的智能体"""
@@ -130,7 +133,12 @@ class FunctionCallAgent(BaseAgent):
         start_at = time.perf_counter()
         llm = self.llm
 
-        if hasattr(llm, "bind_tools") and callable(getattr(llm, "bind_tools")) and len(self.agent_config.tools) > 0:
+        if (
+                ModelFeature.TOOL_CALL in llm.features
+                and hasattr(llm, "bind_tools")
+                and callable(getattr(llm, "bind_tools"))
+                and len(self.agent_config.tools) > 0
+        ):
             llm = llm.bind_tools(self.agent_config.tools)
 
         gathered = None

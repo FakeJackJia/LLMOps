@@ -23,6 +23,8 @@ from internal.core.memory import TokenBufferMemory
 from internal.core.agent.agents import FunctionCallAgent
 from internal.core.agent.entities.agent_entity import AgentConfig
 from internal.core.agent.entities.queue_entity import QueueEvent
+from internal.core.language_model.providers.openai.chat import Chat
+from internal.core.language_model.entities.model_entity import ModelFeature
 
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
@@ -54,7 +56,12 @@ class AssistantAgentService(BaseService):
             status=MessageStatus.NORMAL,
         )
 
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.8)
+        llm = Chat(
+            model="gpt-4o-mini",
+            temperature=0.8,
+            features=[ModelFeature.TOOL_CALL, ModelFeature.AGENT_THOUGHT],
+            metadata={},
+        )
 
         token_buffer_memory = TokenBufferMemory(
             db=self.db,

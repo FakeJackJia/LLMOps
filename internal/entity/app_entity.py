@@ -20,7 +20,6 @@ DEFAULT_APP_CONFIG = {
             "top_p": 0.85,
             "frequency_penalty": 0.2,
             "presence_penalty": 0.2,
-            "max_tokens": 8192,
         },
     },
     "dialog_round": 3,

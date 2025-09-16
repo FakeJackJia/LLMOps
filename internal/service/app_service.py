@@ -394,7 +394,6 @@ class AppService(BaseService):
             )
             tools.append(dataset_retrieval)
 
-        # todo: 构建Agent智能体, 目前暂时使用FCAgent
         agent = FunctionCallAgent(
             llm=llm,
             agent_config=AgentConfig(

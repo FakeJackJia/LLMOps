@@ -80,6 +80,7 @@ class Provider(BaseModel):
     def get_model_entity(self, model_name: str) -> ModelEntity:
         """根据模型名字获取模型实体信息"""
         model_entity = self.model_entity_map.get(model_name, None)
+
         if not model_entity:
             raise NotFoundException("该模型实体不存在")
         return model_entity

@@ -39,7 +39,7 @@ class LanguageModelService(BaseService):
                 "background": provider_entity.background,
                 "support_model_types": provider_entity.supported_model_types,
                 "models": [{
-                    "model": model_entity.model_name,
+                    "model_name": model_entity.model_name,
                     "label": model_entity.label,
                     "model_type": model_entity.model_type,
                     "context_window": model_entity.context_window,
@@ -71,7 +71,7 @@ class LanguageModelService(BaseService):
         model_entity = provider.get_model_entity(model_name)
 
         language_model = {
-            "model": model_entity.model_name,
+            "model_name": model_entity.model_name,
             "label": model_entity.label,
             "model_type": model_entity.model_type,
             "context_window": model_entity.context_window,

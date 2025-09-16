@@ -3,13 +3,14 @@ from threading import Thread
 from typing import Optional, Any, Iterator
 from abc import abstractmethod
 
+from internal.core.language_model.entities.model_entity import BaseLanguageModel
 from internal.core.agent.entities.agent_entity import AgentConfig, AgentState
 from internal.core.agent.entities.queue_entity import AgentThought, AgentResult, QueueEvent
 from internal.exception import FailException
 from .agent_queue_manager import AgentQueueManager
+
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.load import Serializable
-from langchain_core.language_models import BaseLanguageModel
 from langgraph.graph.state import CompiledStateGraph
 from langchain_core.pydantic_v1 import PrivateAttr
 

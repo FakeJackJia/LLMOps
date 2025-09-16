@@ -1,4 +1,4 @@
-model_name: gpt-4o
+model: gpt-4o
 label: gpt-4o
 model_type: chat
 features:
