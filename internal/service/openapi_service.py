@@ -15,6 +15,7 @@ from .app_config_service import AppConfigService
 from .app_service import AppService
 from .retriever_service import RetrievalService
 from .conversation_service import ConversationService
+from .language_model_service import LanguageModelService
 
 from pkg.sqlalchemy import SQLAlchemy
 from pkg.response import Response
@@ -40,6 +41,7 @@ class OpenAPIService(BaseService):
     app_service: AppService
     retrieval_service: RetrievalService
     conversation_service: ConversationService
+    language_model_service: LanguageModelService
 
     def chat(self, req: OpenAPIChatReq, account: Account):
         """根据传递的请求+账号信息发起聊天对话, 返回数据为块内容或生成器"""
@@ -83,11 +85,7 @@ class OpenAPIService(BaseService):
             "status": MessageStatus.NORMAL,
         })
 
-        # todo: 根据传递的model_config实例化不同的LLM模型, 等待多LLM后会发生变化
-        llm = ChatOpenAI(
-            model=app_config["model_config"]["model"],
-            **app_config["model_config"]["parameters"]
-        )
+        llm = self.language_model_service.load_language_model(app_config.get("model_config", {}))
 
         token_buffer_memory = TokenBufferMemory(
             db=self.db,

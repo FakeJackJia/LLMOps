@@ -36,3 +36,14 @@ def remove_fields(data_dict: dict, fields: list[str]) -> None:
     """根据传递的字段名移除字典中指定的字段"""
     for field in fields:
         data_dict.pop(field, None)
+
+def get_value_type(value: Any) -> Any:
+    """根据传递的值获取变量的类型, 并将str和bool转成string和boolean"""
+    value_type = type(value).__name__
+
+    if value_type == "str":
+        return "string"
+    elif value_type == "bool":
+        return "boolean"
+
+    return value_type

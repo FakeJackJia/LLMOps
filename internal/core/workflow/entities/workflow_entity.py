@@ -202,7 +202,7 @@ class WorkflowConfig(BaseModel):
                             else ref_node_data.outputs
                         )
 
-                        if not any([ref_variable.name == variable.value.content.ref_var_name] for ref_variable in ref_variables):
+                        if not any(ref_variable.name == variable.value.content.ref_var_name for ref_variable in ref_variables):
                             raise ValidateErrorException(f"工作流节点{node_data.title}引用了不存在的节点变量")
 
     @classmethod

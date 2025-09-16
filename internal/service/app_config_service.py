@@ -3,17 +3,20 @@ from typing import Any, Union
 from flask import request
 from injector import inject
 from dataclasses import dataclass
-from .base_service import BaseService
 from pkg.sqlalchemy import SQLAlchemy
 
 from internal.model import App, ApiTool, Dataset, AppConfig, AppConfigVersion, AppDatasetJoin
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
 from internal.core.tools.api_tools.providers import ApiProviderManager
-from internal.lib.helper import datetime_to_timestamp
+from internal.lib.helper import datetime_to_timestamp, get_value_type
 from internal.core.tools.api_tools.entities import ToolEntity
+from internal.entity.app_entity import DEFAULT_APP_CONFIG
+from internal.core.language_model import LanguageModelManager
+from internal.core.language_model.entities.model_entity import ModelParameterType
 
 from langchain_core.tools import BaseTool
 
+from .base_service import BaseService
 
 @inject
 @dataclass
@@ -22,12 +25,15 @@ class AppConfigService(BaseService):
     db: SQLAlchemy
     builtin_provider_manager: BuiltinProviderManager
     api_provider_manager: ApiProviderManager
+    language_model_manager: LanguageModelManager
 
     def get_draft_app_config(self, app: App) -> dict[str, Any]:
         """根据传递的应用获取该应用的草稿配置"""
         draft_app_config = app.draft_app_config
 
-        # todo: 校验model_config配置信息, 等待多LLM实现的时候再来完成
+        validate_model_config = self._process_and_validate_model_config(draft_app_config.model_config)
+        if draft_app_config.model_config != validate_model_config:
+            self.update(draft_app_config, model_config=validate_model_config)
 
         # 校验工具列表
         tools, validate_tools = self._process_and_validate_tools(draft_app_config.tools)
@@ -49,7 +55,9 @@ class AppConfigService(BaseService):
         """根据传递的应用获取该应用的运行配置"""
         app_config = app.app_config
 
-        # todo: 校验model_config配置信息, 等待多LLM实现的时候再来完成
+        validate_model_config = self._process_and_validate_model_config(app_config.model_config)
+        if app_config.model_config != validate_model_config:
+            self.update(app_config, model_config=validate_model_config)
 
         # 校验工具列表
         tools, validate_tools = self._process_and_validate_tools(app_config.tools)
@@ -226,3 +234,58 @@ class AppConfigService(BaseService):
             })
 
         return datasets, validate_datasets
+
+    def _process_and_validate_model_config(self, original_model_config: dict[str, Any]) -> dict[str, Any]:
+        """校验传递的模型配置"""
+        if not isinstance(original_model_config, dict):
+            return DEFAULT_APP_CONFIG["model_config"]
+
+        model_config = {
+            "provider": original_model_config.get("provider", ""),
+            "model": original_model_config.get("model", ""),
+            "parameters": original_model_config.get("parameters", {})
+        }
+
+        if not model_config["provider"] or not isinstance(model_config["provider"], str):
+            return DEFAULT_APP_CONFIG["model_config"]
+        provider = self.language_model_manager.get_provider(model_config["provider"])
+        if not provider:
+            return DEFAULT_APP_CONFIG["model_config"]
+
+        if not model_config["model"] or not isinstance(model_config["model"], str):
+            return DEFAULT_APP_CONFIG["model_config"]
+        model_entity = provider.get_model_entity(model_config["model"])
+        if not model_entity:
+            return DEFAULT_APP_CONFIG["model_config"]
+
+        if not model_config["parameters"] or not isinstance(model_config['parameters'], dict):
+            model_config["parameters"]= {
+                parameter.name: parameter.default for parameter in model_entity.parameters
+            }
+
+        parameters = {}
+        for parameter in model_entity.parameters:
+            parameter_value = model_config["parameters"].get(parameter.name, parameter.default)
+
+            if parameter.required:
+                if parameter_value is None or get_value_type(parameter_value) != parameter.type.value:
+                    parameter_value = parameter.default
+            else:
+                if parameter_value is not None:
+                    if get_value_type(parameter_value) != parameter.type.value:
+                        parameter_value = parameter.default
+
+            if parameter.options and parameter_value not in parameter.options:
+                parameter_value = parameter.default
+
+            if parameter.type in [ModelParameterType.INT, ModelParameterType.FLOAT] and parameters is not None:
+                if (
+                        (parameter.min and parameter_value < parameter.min)
+                    or  (parameter.max and parameter_value > parameter.max)
+                ):
+                    parameter_value = parameter.default
+
+            parameters[parameter.name] = parameter_value
+
+        model_config["parameters"] = parameters
+        return model_config

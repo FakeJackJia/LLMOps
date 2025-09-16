@@ -7,6 +7,9 @@ from injector import inject
 
 from internal.core.language_model import LanguageModelManager
 from internal.exception import NotFoundException
+from internal.core.language_model.entities.model_entity import BaseLanguageModel
+
+from langchain_openai import ChatOpenAI
 
 from pkg.sqlalchemy import SQLAlchemy
 from .base_service import BaseService
@@ -114,3 +117,28 @@ class LanguageModelService(BaseService):
         with open(icon_path, "rb") as f:
             byte_data = f.read()
             return byte_data, mimetype
+
+    def load_language_model(self, model_config: dict[str, Any]) -> BaseLanguageModel:
+        """根据传递的模型配置加载LLM模型, 并返回其实例"""
+        try:
+            provider_name = model_config.get("provider", "")
+            model_name = model_config.get("model", "")
+            parameters = model_config.get("parameters", {})
+
+            provider = self.language_model_manager.get_provider(provider_name)
+            model_entity = provider.get_model_entity(model_name)
+            model_cls = provider.get_model_class(model_entity.model_type)
+
+            return model_cls(
+                **model_entity.attributes,
+                **parameters,
+                features=model_entity.features,
+                metadata=model_entity.metadata
+            )
+        except Exception as e:
+            return self.load_default_language_model()
+
+    @classmethod
+    def load_default_language_model(cls) -> BaseLanguageModel:
+        """加载默认LLM模型"""
+        return ChatOpenAI(model="gpt-4o-mini", temperature=1, max_tokens=8192)

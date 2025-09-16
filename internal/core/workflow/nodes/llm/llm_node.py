@@ -4,7 +4,6 @@ from jinja2 import Template
 from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import ChatOpenAI
 
 from internal.core.workflow.nodes import BaseNode
 from internal.core.workflow.entities.node_entity import NodeResult, NodeStatus
@@ -26,12 +25,11 @@ class LLMNode(BaseNode):
         template = Template(self.node_data.prompt)
         prompt_value = template.render(**inputs_dict)
 
-        # todo: 根据配置创建LLM实例, 等待多LLM
-        llm = ChatOpenAI(
-            model=self.node_data.language_model_config.get("model", "gpt-4o-mini"),
-            **self.node_data.language_model_config.get("parameters", {})
-        )
+        from app.http.module import injector
+        from internal.service import LanguageModelService
 
+        language_model_service = injector.get(LanguageModelService)
+        llm = language_model_service.load_language_model(self.node_data.language_model_config)
 
         content = ""
         for chunk in llm.stream(prompt_value):

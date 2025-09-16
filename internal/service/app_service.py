@@ -39,11 +39,15 @@ from internal.core.agent.agents import FunctionCallAgent, AgentQueueManager
 from internal.core.agent.entities.agent_entity import AgentConfig
 from internal.core.agent.entities.queue_entity import QueueEvent
 from internal.entity.conversation_entity import InvokeFrom, MessageStatus
-from internal.lib.helper import remove_fields
+from internal.lib.helper import remove_fields, get_value_type
+from internal.core.language_model import LanguageModelManager
+from internal.core.language_model.entities.model_entity import ModelParameterType
+
 from .base_service import BaseService
 from .retriever_service import RetrievalService
 from .conversation_service import ConversationService
 from .app_config_service import AppConfigService
+from .language_model_service import LanguageModelService
 
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
@@ -60,6 +64,8 @@ class AppService(BaseService):
     conversation_service: ConversationService
     app_config_service: AppConfigService
     redis_client: Redis
+    language_model_service: LanguageModelService
+    language_model_manager: LanguageModelManager
 
     def create_app(self, req: CreateAppReq, account: Account) -> App:
         """创建Agent应用服务"""
@@ -365,11 +371,7 @@ class AppService(BaseService):
             status=MessageStatus.NORMAL,
         )
 
-        # todo: 根据传递的model_config实例化不同的LLM模型, 等待多LLM后会发生变化
-        llm = ChatOpenAI(
-            model=draft_app_config["model_config"]["model"],
-            **draft_app_config["model_config"]["parameters"]
-        )
+        llm = self.language_model_service.load_language_model(draft_app_config.get("model_config", {}))
 
         token_buffer_memory = TokenBufferMemory(
             db=self.db,
@@ -504,7 +506,57 @@ class AppService(BaseService):
         ):
             raise ValidateErrorException("草稿配置字段出错")
 
-        # todo: 校验model_config字段, 等待多LLM实现
+        if "model_config" in draft_app_config:
+            model_config = draft_app_config["model_config"]
+            if not isinstance(model_config, dict):
+                raise ValidateErrorException("模型格式错误")
+
+            if set(model_config.keys()) != {"provider", "model", "parameters"}:
+                raise ValidateErrorException("模型key传递错误")
+
+            if not model_config["provider"] or not isinstance(model_config["provider"], str):
+                raise ValidateErrorException("模型provider类型必须是字符串")
+            provider = self.language_model_manager.get_provider(model_config["provider"])
+            if not provider:
+                raise ValidateErrorException("该模型提供商不存在")
+
+            if not model_config["model"] or not isinstance(model_config["model"], str):
+                raise ValidateErrorException("模型model必须是字符串")
+            model_entity = provider.get_model_entity(model_config["model"])
+            if not model_entity:
+                raise ValidateErrorException("该LLM模型不存在")
+
+            if not model_config["parameters"] or not isinstance(model_config['parameters'], dict):
+                model_config["parameters"] = {
+                    parameter.name: parameter.default for parameter in model_entity.parameters
+                }
+
+            parameters = {}
+            for parameter in model_entity.parameters:
+                parameter_value = model_config["parameters"].get(parameter.name, parameter.default)
+
+                if parameter.required:
+                    if parameter_value is None or get_value_type(parameter_value) != parameter.type.value:
+                        parameter_value = parameter.default
+                else:
+                    if parameter_value is not None:
+                        if get_value_type(parameter_value) != parameter.type.value:
+                            parameter_value = parameter.default
+
+                if parameter.options and parameter_value not in parameter.options:
+                    parameter_value = parameter.default
+
+                if parameter.type in [ModelParameterType.INT, ModelParameterType.FLOAT] and parameters is not None:
+                    if (
+                            (parameter.min and parameter_value < parameter.min)
+                            or (parameter.max and parameter_value > parameter.max)
+                    ):
+                        parameter_value = parameter.default
+
+                parameters[parameter.name] = parameter_value
+
+            model_config["parameters"] = parameters
+            draft_app_config["model_config"] = model_config
 
         if "dialog_round" in draft_app_config:
             dialog_round  = draft_app_config["dialog_round"]
