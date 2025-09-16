@@ -11,6 +11,7 @@ from flask import current_app
 
 from .base_service import BaseService
 from .conversation_service import ConversationService
+from .faiss_service import FaissService
 
 from internal.model import Account, Message
 from internal.core.agent.agents import AgentQueueManager
@@ -25,6 +26,8 @@ from internal.core.agent.entities.queue_entity import QueueEvent
 
 from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
+from langchain_core.tools import BaseTool
+from langchain_core.pydantic_v1 import BaseModel, Field
 
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
@@ -36,6 +39,7 @@ class AssistantAgentService(BaseService):
     """辅助Agent服务"""
     db: SQLAlchemy
     conversation_service: ConversationService
+    faiss_service: FaissService
 
     def chat(self, query: str, account: Account) -> Generator:
         """辅助Agent会话"""
@@ -61,7 +65,7 @@ class AssistantAgentService(BaseService):
         )
         history = token_buffer_memory.get_history_prompt_message(message_limit=3)
 
-        tools = []
+        tools = [self.faiss_service.convert_faiss_to_tool()]
 
         agent = FunctionCallAgent(
             llm=llm,
