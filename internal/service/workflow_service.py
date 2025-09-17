@@ -16,6 +16,7 @@ from internal.exception import (
     ForbiddenException,
     FailException
 )
+from internal.entity.app_entity import DEFAULT_APP_CONFIG
 from internal.entity.workflow_entity import DEFAULT_WORKFLOW_CONFIG, WorkflowStatus, WorkflowResultStatus
 from internal.core.workflow.entities.node_entity import NodeType
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
@@ -121,7 +122,7 @@ class WorkflowService(BaseService):
 
         for node in draft_graph["nodes"]:
             if node.get("node_type") == NodeType.TOOL:
-                if node.get("type") == "builtin_tool":
+                if node.get("tool_type") == "builtin_tool":
                     provider = self.builtin_provider_manager.get_provider(node.get("provider_id"))
                     if not provider:
                         continue
@@ -211,6 +212,11 @@ class WorkflowService(BaseService):
                         "description": dataset.description,
                     } for dataset in datasets]
                 }
+            elif node.get("node_type") == NodeType.LLM:
+                if node.get("model_config", ""):
+                    node["language_model_config"] = node["model_config"]
+                else:
+                    node["language_model_config"] = DEFAULT_APP_CONFIG["model_config"]
 
         return draft_graph
 

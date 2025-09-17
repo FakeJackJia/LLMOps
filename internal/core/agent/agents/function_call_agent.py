@@ -180,6 +180,13 @@ class FunctionCallAgent(BaseAgent):
             self.agent_queue_manager.publish_error(state["task_id"], "llm节点发生错误")
             raise e
 
+        input_token_count = self.llm.get_num_tokens_from_messages(state["messages"])
+        output_token_count = self.llm.get_num_tokens_from_messages([gathered])
+        input_price, output_price, unit = self.llm.get_pricing()
+
+        total_token_count = input_token_count + output_token_count
+        total_price = (input_token_count * input_price + output_token_count * output_price) * unit
+
         if generation_type == "thought":
             self.agent_queue_manager.publish(state["task_id"], AgentThought(
                 id=id,
@@ -187,9 +194,27 @@ class FunctionCallAgent(BaseAgent):
                 event=QueueEvent.AGENT_THOUGHT,
                 thought=json.dumps(gathered.tool_calls),
                 message=messages_to_dict(state["messages"]),
+                answer="",
                 latency=(time.perf_counter() - start_at),
             ))
         elif generation_type == "message":
+            self.agent_queue_manager.publish(state["task_id"], AgentThought(
+                id=id,
+                task_id=state["task_id"],
+                event=QueueEvent.AGENT_MESSAGE,
+                thought="",
+                message=messages_to_dict(state["messages"]),
+                answer="",
+                message_token_count=input_token_count,
+                message_unit_price=input_price,
+                message_price_unit=unit,
+                answer_token_count=output_token_count,
+                answer_unit_price=output_price,
+                answer_price_unit=unit,
+                total_token_count=total_token_count,
+                total_price=total_price,
+                latency=(time.perf_counter() - start_at),
+            ))
             self.agent_queue_manager.publish(state["task_id"], AgentThought(
                 id=uuid.uuid4(),
                 task_id=state["task_id"],

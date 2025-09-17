@@ -18,3 +18,9 @@ parameters:
     use_template: presence_penalty
   - name: frequency_penalty
     use_template: frequency_penalty
+metadata:
+  pricing:
+    input: 0.0183
+    output: 0.0733
+    unit: 0.001
+    currency: RMB

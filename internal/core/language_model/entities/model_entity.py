@@ -64,3 +64,11 @@ class BaseLanguageModel(LCBaseLanguageModel, ABC):
     """基础语言模型"""
     features: list[ModelFeature] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def get_pricing(self) -> tuple[float, float, float]:
+        """获取LLM对应的价格, 格式为(输入价格, 输出价格, 单位)"""
+        input_price = self.metadata.get("pricing").get("input")
+        output_price = self.metadata.get("pricing").get("output")
+        unit = self.metadata.get("pricing").get("unit")
+
+        return input_price, output_price, unit

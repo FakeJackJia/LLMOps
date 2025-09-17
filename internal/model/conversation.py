@@ -142,27 +142,9 @@ class MessageAgentThought(db.Model):
 
     # Agent推理观察步骤使用的消息列表(传递prompt消息内容)
     message = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))  # 该步骤调用LLM使用的提示消息
-    message_token_count = Column(Integer, nullable=False, server_default=text("0"))  # 消息花费的token数
-    message_unit_price = Column(Numeric(10, 7), nullable=False, server_default=text("0.0"))  # 单价，所有LLM的计算方式统一为CNY
-    message_price_unit = Column(
-        Numeric(10, 4),
-        nullable=False,
-        server_default=text("0"),
-    )  # 价格单位，值为1000代表1000token对应的单价
 
     # LLM生成内容相关(生成内容)
     answer = Column(Text, nullable=False, server_default=text("''::text"))  # LLM生成的答案内容，值和thought保持一致
-    answer_token_count = Column(Integer, nullable=False, server_default=text("0"))  # LLM生成答案消耗token数
-    answer_unit_price = Column(Numeric(10, 7), nullable=False, server_default=text("0.0"))  # 单价，所有LLM的计算方式统一为CNY
-    answer_price_unit = Column(
-        Numeric(10, 4),
-        nullable=False,
-        server_default=text("0.0"),
-    )  # 价格单位，值为1000代表1000token对应的单价
-
-    # Agent推理观察统计相关
-    total_token_count = Column(Integer, nullable=False, server_default=text("0"))  # 总消耗token
-    total_price = Column(Numeric(10, 7), nullable=False, server_default=text("0.0"))  # 总消耗
     latency = Column(Float, nullable=False, server_default=text("0.0"))  # 推理观察步骤耗时
 
     # 时间相关信息
