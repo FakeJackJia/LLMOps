@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from flask import current_app
 
 from langchain_core.messages import HumanMessage
-from langchain_openai import ChatOpenAI
 
 from .base_service import BaseService
 from .app_config_service import AppConfigService
@@ -107,6 +106,12 @@ class OpenAPIService(BaseService):
                 **app_config["retrieval_config"]
             )
             tools.append(dataset_retrieval)
+
+        if app_config["workflows"]:
+            workflow_tools = self.app_config_service.get_langchain_tools_by_workflow_ids(
+                [workflow["id"] for workflow in app_config["workflows"]]
+            )
+            tools.extend(workflow_tools)
 
         agent = FunctionCallAgent(
             llm=llm,

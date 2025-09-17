@@ -5,14 +5,17 @@ from injector import inject
 from dataclasses import dataclass
 from pkg.sqlalchemy import SQLAlchemy
 
-from internal.model import App, ApiTool, Dataset, AppConfig, AppConfigVersion, AppDatasetJoin
+from internal.model import App, ApiTool, Dataset, AppConfig, AppConfigVersion, AppDatasetJoin, Workflow
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
 from internal.core.tools.api_tools.providers import ApiProviderManager
 from internal.lib.helper import datetime_to_timestamp, get_value_type
 from internal.core.tools.api_tools.entities import ToolEntity
 from internal.entity.app_entity import DEFAULT_APP_CONFIG
+from internal.entity.workflow_entity import WorkflowStatus
 from internal.core.language_model import LanguageModelManager
 from internal.core.language_model.entities.model_entity import ModelParameterType
+from internal.core.workflow import Workflow as WorkflowTool
+from internal.core.workflow.entities.workflow_entity import WorkflowConfig
 
 from langchain_core.tools import BaseTool
 
@@ -46,8 +49,10 @@ class AppConfigService(BaseService):
         if len(validate_datasets) != len(draft_app_config.datasets):
             self.update(draft_app_config, datasets=validate_datasets)
 
-        # todo: 校验工作流
-        workflows = []
+        workflows, validate_workflows = self._process_and_validate_workflows(draft_app_config.workflows)
+
+        if len(validate_workflows) != len(draft_app_config.workflows):
+            self.update(draft_app_config, workflows=validate_workflows)
 
         return self._process_and_transform_app_config(tools, workflows, datasets, draft_app_config)
 
@@ -74,8 +79,10 @@ class AppConfigService(BaseService):
                 AppDatasetJoin.dataset_id == dataset_id,
             ).delete()
 
-        # todo: 校验工作流
-        workflows = []
+        workflows, validate_workflows = self._process_and_validate_workflows(app_config.workflows)
+
+        if len(validate_workflows) != len(app_config.workflows):
+            self.update(app_config, workflows=validate_workflows)
 
         return self._process_and_transform_app_config(tools, workflows, datasets, app_config)
 
@@ -114,6 +121,29 @@ class AppConfigService(BaseService):
                 )
 
         return tools
+
+    def get_langchain_tools_by_workflow_ids(self, workflow_ids: list[str]) -> list[BaseTool]:
+        """根据传递的工作流配置列表获取LangChain工具列表"""
+        workflow_records = self.db.session.query(Workflow).filter(
+            Workflow.id.in_(workflow_ids),
+            Workflow.status == WorkflowStatus.PUBLISHED
+        ).all()
+
+        workflows = []
+        for workflow_record in workflow_records:
+            try:
+                workflow_tool = WorkflowTool(workflow_config=WorkflowConfig(
+                    account_id=workflow_record.account_id,
+                    name=workflow_record.tool_call_name,
+                    description=workflow_record.description,
+                    nodes=workflow_record.graph.get("nodes", {}),
+                    edges=workflow_record.graph.get("edges", {})
+                ))
+                workflows.append(workflow_tool)
+            except Exception:
+                continue
+
+        return workflows
 
     @classmethod
     def _process_and_transform_app_config(
@@ -289,3 +319,25 @@ class AppConfigService(BaseService):
 
         model_config["parameters"] = parameters
         return model_config
+
+    def _process_and_validate_workflows(self, original_workflows: list[str]) -> tuple[list[dict], list[str]]:
+        """根据传递的工作流进行处理和校验"""
+        workflows = []
+        workflow_records = self.db.session.query(Workflow).filter(
+            Workflow.id.in_(original_workflows),
+            Workflow.status == WorkflowStatus.PUBLISHED
+        ).all()
+        workflow_dict = {str(workflow_record.id): workflow_record for workflow_record in workflow_records}
+        workflow_sets = set(workflow_dict.keys())
+        validate_workflows = [workflow_id for workflow_id in original_workflows if workflow_id in workflow_sets]
+
+        for workflow_id in validate_workflows:
+            workflow = workflow_dict.get(str(workflow_id))
+            workflows.append({
+                "id": str(workflow_id),
+                "name": workflow.name,
+                "icon": workflow.icon,
+                "description": workflow.description,
+            })
+
+        return workflows, validate_workflows

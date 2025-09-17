@@ -21,6 +21,7 @@ from internal.model import (
     AppDatasetJoin,
     Conversation,
     Message,
+    Workflow
 )
 from internal.schema.app_schema import (
     CreateAppReq,
@@ -35,6 +36,7 @@ from internal.exception import ValidateErrorException, FailException
 from internal.core.memory import TokenBufferMemory
 from internal.core.tools.api_tools.providers import ApiProviderManager
 from internal.entity.dataset_entity import RetrievalSource
+from internal.entity.workflow_entity import WorkflowStatus
 from internal.core.agent.agents import FunctionCallAgent, AgentQueueManager
 from internal.core.agent.entities.agent_entity import AgentConfig
 from internal.core.agent.entities.queue_entity import QueueEvent
@@ -214,8 +216,7 @@ class AppService(BaseService):
                 }
                 for tool in draft_app_config["tools"]
             ],
-            # todo: 工作流模块完成后 该处可能发生变动
-            workflows=draft_app_config["workflows"],
+            workflows=[workflow["id"] for workflow in draft_app_config["workflows"]],
             retrieval_config=draft_app_config["retrieval_config"],
             long_term_memory=draft_app_config["long_term_memory"],
             opening_statement=draft_app_config["opening_statement"],
@@ -393,6 +394,12 @@ class AppService(BaseService):
                 **draft_app_config["retrieval_config"]
             )
             tools.append(dataset_retrieval)
+
+        if draft_app_config["workflows"]:
+            workflow_tools = self.app_config_service.get_langchain_tools_by_workflow_ids(
+                [workflow["id"] for workflow in draft_app_config["workflows"]]
+            )
+            tools.extend(workflow_tools)
 
         agent = FunctionCallAgent(
             llm=llm,
@@ -629,9 +636,31 @@ class AppService(BaseService):
 
             draft_app_config["tools"] = validate_tools
 
-        # todo: 校验工作流, 等待工作流模块实现后
         if "workflows" in draft_app_config:
-            draft_app_config["workflows"] = []
+            workflows = draft_app_config["workflows"]
+
+            if not isinstance(workflows, list):
+                raise ValidateErrorException("绑定工作流列表错误")
+
+            if len(workflows) > 5:
+                raise ValidateErrorException("Agent最多绑定5个工作流")
+
+            for workflow_id in workflows:
+                try:
+                    UUID(workflow_id)
+                except Exception:
+                    raise ValidateErrorException("工作流列表参数必须是UUID")
+
+            if len(set(workflows)) != len(workflows):
+                raise ValidateErrorException("工作流重复绑定")
+
+            workflow_records = self.db.session.query(Workflow).filter(
+                Workflow.id.in_(workflows),
+                Workflow.account_id == account.id,
+                Workflow.status == WorkflowStatus.PUBLISHED
+            ).all()
+            workflow_sets = set([str(workflow_record.id) for workflow_record in workflow_records])
+            draft_app_config["workflows"] = [workflow_id for workflow_id in workflows if workflow_id in workflow_sets]
 
         if "datasets" in draft_app_config:
             datasets = draft_app_config["datasets"]
