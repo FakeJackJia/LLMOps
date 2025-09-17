@@ -27,7 +27,6 @@ from internal.core.language_model.providers.openai.chat import Chat
 from internal.core.language_model.entities.model_entity import ModelFeature
 
 from langchain_core.messages import HumanMessage
-from langchain_openai import ChatOpenAI
 
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
@@ -60,7 +59,7 @@ class AssistantAgentService(BaseService):
             model="gpt-4o-mini",
             temperature=0.8,
             features=[ModelFeature.TOOL_CALL, ModelFeature.AGENT_THOUGHT],
-            metadata={},
+            metadata={"pricing": {"input": 0.0011, "output": 0.0044, "unit": 0.001, "currency": "RMB"}},
         )
 
         token_buffer_memory = TokenBufferMemory(
@@ -97,7 +96,16 @@ class AssistantAgentService(BaseService):
                     else:
                         agent_thoughts[event_id] = agent_thoughts[event_id].model_copy(update={
                             "thought": agent_thoughts[event_id].thought + agent_thought.thought,
+                            "message": agent_thought.message,
+                            "message_token_count": agent_thought.message_token_count,
+                            "message_unit_price": agent_thought.message_unit_price,
+                            "message_price_unit": agent_thought.message_price_unit,
                             "answer": agent_thoughts[event_id].answer + agent_thought.answer,
+                            "answer_token_count": agent_thought.answer_token_count,
+                            "answer_unit_price": agent_thought.answer_unit_price,
+                            "answer_price_unit": agent_thought.answer_price_unit,
+                            "total_token_count": agent_thought.total_token_count,
+                            "total_price": agent_thought.total_price,
                             "latency": agent_thought.latency
                         })
                 else:
@@ -105,7 +113,8 @@ class AssistantAgentService(BaseService):
 
             data = {
                 **agent_thought.model_dump(include={
-                    "event", "thought", "observation", "tool", "tool_input", "answer", "latency"
+                    "event", "thought", "observation", "tool", "tool_input", "answer", "latency",
+                    "total_token_count", "total_price"
                 }),
                 "id": event_id,
                 "conversation_id": str(conversation.id),
