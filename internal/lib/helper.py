@@ -1,3 +1,5 @@
+import random
+import string
 from typing import Any
 import importlib
 from hashlib import sha256
@@ -47,3 +49,9 @@ def get_value_type(value: Any) -> Any:
         return "boolean"
 
     return value_type
+
+def generate_random_string(length: int = 16) -> str:
+    """生成随机字符串"""
+    chars = string.ascii_letters + string.digits
+    random_str = ''.join(random.choices(chars, k=length))
+    return random_str

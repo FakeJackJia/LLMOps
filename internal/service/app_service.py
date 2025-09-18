@@ -41,7 +41,7 @@ from internal.core.agent.agents import FunctionCallAgent, AgentQueueManager
 from internal.core.agent.entities.agent_entity import AgentConfig
 from internal.core.agent.entities.queue_entity import QueueEvent
 from internal.entity.conversation_entity import InvokeFrom, MessageStatus
-from internal.lib.helper import remove_fields, get_value_type
+from internal.lib.helper import remove_fields, get_value_type, generate_random_string
 from internal.core.language_model import LanguageModelManager
 from internal.core.language_model.entities.model_entity import ModelParameterType
 
@@ -505,6 +505,29 @@ class AppService(BaseService):
         )
 
         return messages, paginator
+
+    def get_published_config(self, app_id: UUID, account: Account) -> dict[str, Any]:
+        """获取应用发布需要的配置"""
+        app = self.get_app(app_id, account)
+
+        return {
+            "web_app": {
+                "token": app.token_with_default,
+                "status": app.status
+            }
+        }
+
+    def regenerate_web_app_token(self, app_id: UUID, account: Account) -> str:
+        """重新生成WebApp凭证"""
+        app = self.get_app(app_id, account)
+
+        if app.status != AppStatus.PUBLISHED:
+            raise FailException("应用未先发布")
+
+        token = generate_random_string()
+        self.update(app, token=token)
+
+        return token
 
     def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
         """校验传递的应用草稿配置信息"""

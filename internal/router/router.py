@@ -21,6 +21,7 @@ from internal.handler import (
     LanguageModelHandler,
     AssistantAgentHandler,
     AnalysisHandler,
+    WebAppHandler,
 )
 
 @inject
@@ -45,6 +46,7 @@ class Router:
     language_model_handler: LanguageModelHandler
     assistant_agent_handler: AssistantAgentHandler
     analysis_handler: AnalysisHandler
+    web_handler: WebAppHandler
 
     def register_router(self, app: Flask):
         """注册路由"""
@@ -72,6 +74,8 @@ class Router:
         bp.add_url_rule("/apps/<uuid:app_id>/conversations", methods=["POST"], view_func=self.app_handler.debug_chat)
         bp.add_url_rule("/apps/<uuid:app_id>/conversations/tasks/<uuid:task_id>/stop", methods=["POST"], view_func=self.app_handler.stop_debug_chat)
         bp.add_url_rule("/apps/<uuid:app_id>/conversations/messages", view_func=self.app_handler.get_debug_conversation_messages_with_page)
+        bp.add_url_rule("/apps/<uuid:app_id>/published-config", view_func=self.app_handler.get_published_config)
+        bp.add_url_rule("/apps/<uuid:app_id>/published-config/regenerate-web-app-token", methods=["POST"], view_func=self.app_handler.regenerate_web_app_token)
 
         # 内置插件广场模块
         bp.add_url_rule("/builtin-tools", view_func=self.builtin_tool_handler.get_builtin_tools)
@@ -169,6 +173,11 @@ class Router:
 
         # 统计模块
         bp.add_url_rule("/analysis/<uuid:app_id>", view_func=self.analysis_handler.get_app_analysis)
+
+        # WebApp模块
+        bp.add_url_rule("/web-apps/<string:token>/", view_func=self.web_handler.get_web_app)
+        bp.add_url_rule("/web-apps/<string:token>/chat", methods=["POST"], view_func=self.web_handler.web_app_chat)
+        bp.add_url_rule("/web-apps/<string:token>/chat/<uuid:task_id>/stop", methods=["POST"], view_func=self.web_handler.stop_web_app_chat)
 
         # 在应用上去注册蓝图
         app.register_blueprint(bp)

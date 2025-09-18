@@ -135,7 +135,7 @@ class AnalysisService(BaseService):
             previous_val = previous_data.get(field)
 
             if previous_val != 0:
-                pop[field] = (current_val - previous_val) / previous_val
+                pop[field] = float((current_val - previous_val) / previous_val)
             else:
                 pop[field] = 0
 
@@ -182,7 +182,7 @@ class AnalysisService(BaseService):
             if conversation_count != 0:
                 avg_of_conversation_messages_trend_y_axis = total_messages_trend_y_axis / conversation_count
             avg_of_conversation_messages_trend["x_axis"].append(int(trend_start_at.timestamp()))
-            avg_of_conversation_messages_trend["y_axis"].append(avg_of_conversation_messages_trend_y_axis)
+            avg_of_conversation_messages_trend["y_axis"].append(float(avg_of_conversation_messages_trend_y_axis))
 
             cost_consumption_trend_y_axis = float(sum(
                 message.total_price for message in messages

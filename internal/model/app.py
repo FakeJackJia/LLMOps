@@ -10,8 +10,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from internal.extension.database_extension import db
-from internal.entity.app_entity import AppConfigType
+from internal.entity.app_entity import AppConfigType, AppStatus
 from internal.entity.conversation_entity import InvokeFrom
+from internal.lib.helper import generate_random_string
 from .conversation import Conversation
 
 class App(db.Model):
@@ -81,6 +82,20 @@ class App(db.Model):
 
         return debug_conversation
 
+    @property
+    def token_with_default(self) -> str:
+        """获取带有默认值的token"""
+        if self.status != AppStatus.PUBLISHED:
+            if self.token is not None or self.token != "":
+                self.token = None
+                db.session.commit()
+            return ""
+
+        if self.token is None or self.token == "":
+            self.token = generate_random_string()
+            db.session.commit()
+
+        return self.token
 
 class AppConfig(db.Model):
     """应用配置模型"""

@@ -189,6 +189,18 @@ class AppHandler:
         return success_json(PageModel(list=resp.dump(messages), paginator=paginator))
 
     @login_required
+    def get_published_config(self, app_id: UUID):
+        """获取应用发布需要的配置信息"""
+        published_config = self.app_service.get_published_config(app_id, current_user)
+        return success_json(published_config)
+
+    @login_required
+    def regenerate_web_app_token(self, app_id: UUID):
+        """重新生成WebApp标识"""
+        token = self.app_service.regenerate_web_app_token(app_id, current_user)
+        return success_json({"token": token})
+
+    @login_required
     def ping(self):
         provider = self.language_model_manager.get_provider("ollama")
         model_entity = provider.get_model_entity("qwen2.5-7b")

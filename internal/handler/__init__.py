@@ -16,6 +16,7 @@ from .workflow_handler import WorkflowHandler
 from .language_model_handler import LanguageModelHandler
 from .assistant_agent_handler import AssistantAgentHandler
 from .analysis_handler import AnalysisHandler
+from .web_app_handler import WebAppHandler
 
 __all__ = [
     "AppHandler",
@@ -35,5 +36,6 @@ __all__ = [
     "WorkflowHandler",
     "LanguageModelHandler",
     "AssistantAgentHandler",
-    "AnalysisHandler"
+    "AnalysisHandler",
+    "WebAppHandler"
 ]
