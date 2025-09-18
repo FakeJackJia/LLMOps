@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from threading import Thread
 from typing import Generator
 from uuid import UUID
@@ -7,18 +8,18 @@ from flask import current_app
 from injector import inject
 from dataclasses import dataclass
 from langchain_core.messages import HumanMessage
+from sqlalchemy import desc
 
 from internal.model import App, Account, Conversation, Message
 from internal.entity.app_entity import AppStatus
 from internal.entity.conversation_entity import InvokeFrom, MessageStatus
 from internal.exception import NotFoundException, ForbiddenException
-from internal.schema.web_app_schema import WebAppChatReq
+from internal.schema.web_app_schema import WebAppChatReq, GetConversationMessagesWithPageReq
 from internal.core.memory import TokenBufferMemory
 from internal.entity.dataset_entity import RetrievalSource
 from internal.core.agent.agents import FunctionCallAgent, AgentQueueManager
 from internal.core.agent.entities.agent_entity import AgentConfig
 from internal.core.agent.entities.queue_entity import QueueEvent
-
 
 from .base_service import BaseService
 from .app_config_service import AppConfigService
@@ -27,6 +28,7 @@ from .language_model_service import LanguageModelService
 from .retriever_service import RetrievalService
 
 from pkg.sqlalchemy import SQLAlchemy
+from pkg.paginator import Paginator
 
 @inject
 @dataclass
@@ -184,3 +186,53 @@ class WebAppService(BaseService):
         """根据传递的token+task_id停止WebApp对话"""
         self.get_web_app(token)
         AgentQueueManager.set_stop_flag(task_id, InvokeFrom.WEB_APP, account.id)
+
+    def get_conversations(self, token: str, is_pinned: bool, account: Account) -> list[Conversation]:
+        """获取WebApp会话列表"""
+        app = self.get_web_app(token)
+
+        conversations = self.db.session.query(Conversation).filter(
+            Conversation.app_id == app.id,
+            Conversation.created_by == account.id,
+            Conversation.invoke_from == InvokeFrom.WEB_APP,
+            Conversation.is_pinned == is_pinned,
+            ~Conversation.is_deleted,
+        ).order_by(desc("created_by")).all()
+
+        return conversations
+
+    def get_conversation(self, conversation_id: UUID, account: Account) -> Conversation:
+        """获取指定会话"""
+        conversation = self.get(Conversation, conversation_id)
+
+        if not conversation or conversation.created_by != account.id or conversation.is_deleted:
+            raise NotFoundException("未找到该会话")
+
+        return conversation
+
+    def get_conversation_messages_with_page(
+            self,
+            conversation_id: UUID,
+            req: GetConversationMessagesWithPageReq,
+            account: Account
+    ) -> tuple[list[Message], Paginator]:
+        """获取WebApp会话消息列表"""
+        self.get_conversation(conversation_id, account)
+
+        paginator = Paginator(db=self.db, req=req)
+        filters = []
+        if req.created_at.data is not None:
+            created_at_datetime = datetime.fromtimestamp(req.created_at.data)
+            filters.append(Message.created_at <= created_at_datetime)
+
+        messages = paginator.paginate(
+            self.db.session.query(Message).filter(
+                Message.conversation_id == conversation_id,
+                Message.status.in_([MessageStatus.STOP, MessageStatus.NORMAL]),
+                Message.answer != "",
+                Message.is_deleted == False,
+                *filters
+            ).order_by(desc("created_at"))
+        )
+
+        return messages, paginator
