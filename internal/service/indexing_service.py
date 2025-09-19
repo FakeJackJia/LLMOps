@@ -13,11 +13,8 @@ from internal.model import Document, Segment, KeywordTable, DatasetQuery, Proces
 from internal.entity.dataset_entity import DocumentStatus, SegmentStatus
 from langchain_core.documents import Document as LCDocument
 from internal.core.file_extractor import FileExtractor
-from internal.entity.cache_entity import (
-    LOCK_DOCUMENT_UPDATED_ENABLED,
-    LOCK_KEYWORD_TABLE_UPDATE_KEYWORD_TABLE,
-    LOCK_EXPIRE_TIME
-)
+from internal.entity.cache_entity import LOCK_DOCUMENT_UPDATED_ENABLED
+
 from .process_rule_service import ProcessRuleService
 from .embeddings_service import EmbeddingsService
 from sqlalchemy import func

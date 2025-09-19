@@ -1,3 +1,13 @@
+import os
+
+# 猴子补丁
+if os.environ.get("FLASK_DEBUG") == "0" or os.environ.get("FLASK_ENV") == "production":
+    from gevent import monkey
+    monkey.patch_all()
+
+    import grpc.experimental.gevent
+    grpc.experimental.gevent.init_gevent()
+
 import dotenv
 from .module import injector
 from internal.server import Http

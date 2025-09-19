@@ -164,10 +164,7 @@ class OpenAPIService(BaseService):
 
                     yield f"event: {agent_thought.event}\ndata:{json.dumps(data)}\n\n"
 
-                thread = Thread(
-                    target=self.conversation_service.save_agent_thoughts,
-                    kwargs={
-                        "flask_app": current_app._get_current_object(),
+                self.conversation_service.save_agent_thoughts(**{
                         "account_id": account.id,
                         "app_id": app.id,
                         "conversation_id": conversation.id,
@@ -176,16 +173,12 @@ class OpenAPIService(BaseService):
                         "app_config": app_config
                     }
                 )
-                thread.start()
 
             return handle_stream()
 
         agent_result = agent.invoke(agent_state)
 
-        thread = Thread(
-            target=self.conversation_service.save_agent_thoughts,
-            kwargs={
-                "flask_app": current_app._get_current_object(),
+        self.conversation_service.save_agent_thoughts(**{
                 "account_id": account.id,
                 "app_id": app.id,
                 "conversation_id": conversation.id,
@@ -194,7 +187,6 @@ class OpenAPIService(BaseService):
                 "app_config": app_config
             }
         )
-        thread.start()
 
         return Response(data={
             "id": str(Message.id),

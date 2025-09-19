@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import (
     Column,
     UUID,
@@ -6,6 +8,7 @@ from sqlalchemy import (
     Boolean,
     text,
     PrimaryKeyConstraint,
+    Index
 )
 
 from internal.extension.database_extension import db
@@ -16,6 +19,8 @@ class ApiKey(db.Model):
     __tablename__ = "api_key"
     __table_args__ = (
         PrimaryKeyConstraint("id", name="pk_api_key_id"),
+        Index("api_key_account_id_idx", "account_id"),
+        Index("api_key_api_key_idx", "api_key")
     )
 
     id = Column(UUID, nullable=False, server_default=text("uuid_generate_v4()"))  # 记录id
@@ -27,7 +32,7 @@ class ApiKey(db.Model):
         DateTime,
         nullable=False,
         server_default=text('CURRENT_TIMESTAMP(0)'),
-        server_onupdate=text('CURRENT_TIMESTAMP(0)')
+        onupdate=datetime.now
     )
     created_at = Column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP(0)'))
 

@@ -1,14 +1,12 @@
 import os
 import weaviate
 from injector import inject
-from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_weaviate import WeaviateVectorStore
 from weaviate import WeaviateClient
 from weaviate.auth import AuthApiKey
 from .embeddings_service import EmbeddingsService
 from weaviate.collections import Collection
-
 
 COLLECTION_NAME = "Dataset"
 

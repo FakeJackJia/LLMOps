@@ -456,10 +456,7 @@ class AppService(BaseService):
 
             yield f"event: {agent_thought.event}\ndata:{json.dumps(data)}\n\n"
 
-        thread = Thread(
-            target=self.conversation_service.save_agent_thoughts,
-            kwargs={
-                "flask_app": current_app._get_current_object(),
+        self.conversation_service.save_agent_thoughts(**{
                 "account_id": account.id,
                 "app_id": app.id,
                 "conversation_id": debug_conversation.id,
@@ -468,7 +465,6 @@ class AppService(BaseService):
                 "app_config": draft_app_config
             }
         )
-        thread.start()
 
     def stop_debug_chat(self, app_id: UUID, task_id: UUID, account: Account) -> None:
         """根据传递的应用id+任务id停止某个应用的指定调试会话"""
@@ -492,7 +488,7 @@ class AppService(BaseService):
         if req.created_at.data is not None:
             # 将时间戳转换成DateTime
             created_at_datetime = datetime.fromtimestamp(req.created_at.data)
-            filters.append(Message.created_at <= created_at_datetime)
+            filters.append(Message.created_at >= created_at_datetime)
 
         messages = paginator.paginate(
             self.db.session.query(Message).filter(

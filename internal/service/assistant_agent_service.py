@@ -124,10 +124,7 @@ class AssistantAgentService(BaseService):
 
             yield f"event: {agent_thought.event}\ndata:{json.dumps(data)}\n\n"
 
-        thread = Thread(
-            target=self.conversation_service.save_agent_thoughts,
-            kwargs={
-                "flask_app": current_app._get_current_object(),
+        self.conversation_service.save_agent_thoughts(**{
                 "account_id": account.id,
                 "app_id": assistant_agent_id,
                 "conversation_id": conversation.id,
@@ -136,7 +133,6 @@ class AssistantAgentService(BaseService):
                 "app_config": {"long_term_memory": {"enable": True}}
             }
         )
-        thread.start()
 
     @classmethod
     def stop_chat(cls, task_id: UUID, account: Account) -> None:
@@ -156,7 +152,7 @@ class AssistantAgentService(BaseService):
         if req.created_at.data is not None:
             # 将时间戳转换成DateTime
             created_at_datetime = datetime.fromtimestamp(req.created_at.data)
-            filters.append(Message.created_at <= created_at_datetime)
+            filters.append(Message.created_at >= created_at_datetime)
 
         messages = paginator.paginate(
             self.db.session.query(Message).filter(

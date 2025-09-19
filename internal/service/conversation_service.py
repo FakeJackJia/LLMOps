@@ -2,7 +2,6 @@ import logging
 from typing import Any
 from uuid import UUID
 
-from flask import Flask
 from injector import inject
 from dataclasses import dataclass
 from .base_service import BaseService
@@ -14,7 +13,6 @@ from internal.entity.conversation_entity import (
     ConversationInfo,
     SUGGEST_QUESTIONS_TEMPLATE,
     SuggestedQuestions,
-    MessageStatus,
     InvokeFrom,
 )
 from internal.core.agent.entities.queue_entity import AgentThought, QueueEvent
@@ -104,7 +102,6 @@ class ConversationService(BaseService):
 
     def save_agent_thoughts(
             self,
-            flask_app: Flask,
             account_id: UUID,
             app_id: UUID,
             conversation_id: UUID,
@@ -113,81 +110,80 @@ class ConversationService(BaseService):
             app_config: dict[str, Any]
     ) -> None:
         """存储智能体推理步骤消息"""
-        with flask_app.app_context():
-            position = 0
-            latency = 0
+        position = 0
+        latency = 0
 
-            conversation = self.get(Conversation, conversation_id)
-            message = self.get(Message, message_id)
+        conversation = self.get(Conversation, conversation_id)
+        message = self.get(Message, message_id)
 
-            for agent_thought in agent_thoughts:
-                if agent_thought.event in [
-                    QueueEvent.LONG_TERM_MEMORY_RECALL,
-                    QueueEvent.AGENT_THOUGHT,
-                    QueueEvent.AGENT_MESSAGE,
-                    QueueEvent.AGENT_ACTION,
-                    QueueEvent.DATASET_RETRIEVAL,
-                ]:
+        for agent_thought in agent_thoughts:
+            if agent_thought.event in [
+                QueueEvent.LONG_TERM_MEMORY_RECALL,
+                QueueEvent.AGENT_THOUGHT,
+                QueueEvent.AGENT_MESSAGE,
+                QueueEvent.AGENT_ACTION,
+                QueueEvent.DATASET_RETRIEVAL,
+            ]:
 
-                    position += 1
-                    latency += agent_thought.latency
+                position += 1
+                latency += agent_thought.latency
 
-                    self.create(
-                        MessageAgentThought,
-                        app_id=app_id,
-                        conversation_id=conversation.id,
-                        message_id=message.id,
-                        invoke_from=InvokeFrom.DEBUGGER,
-                        created_by=account_id,
-                        position=position,
-                        event=agent_thought.event,
-                        thought=agent_thought.thought,
-                        observation=agent_thought.observation,
-                        tool=agent_thought.tool,
-                        tool_input=agent_thought.tool_input,
+                self.create(
+                    MessageAgentThought,
+                    app_id=app_id,
+                    conversation_id=conversation.id,
+                    message_id=message.id,
+                    invoke_from=InvokeFrom.DEBUGGER,
+                    created_by=account_id,
+                    position=position,
+                    event=agent_thought.event,
+                    thought=agent_thought.thought,
+                    observation=agent_thought.observation,
+                    tool=agent_thought.tool,
+                    tool_input=agent_thought.tool_input,
+                    message=agent_thought.message,
+                    answer=agent_thought.answer,
+                    latency=agent_thought.latency
+                )
+
+                if agent_thought.event == QueueEvent.AGENT_MESSAGE:
+                    self.update(
+                        message,
                         message=agent_thought.message,
+                        message_token_count=agent_thought.message_token_count,
+                        message_unit_price=agent_thought.message_unit_price,
+                        message_price_unit=agent_thought.message_price_unit,
                         answer=agent_thought.answer,
-                        latency=agent_thought.latency
+                        answer_token_count=agent_thought.answer_token_count,
+                        answer_unit_price=agent_thought.answer_unit_price,
+                        answer_price_unit=agent_thought.answer_price_unit,
+                        total_token_count=agent_thought.total_token_count,
+                        total_price=agent_thought.total_price,
+                        latency=latency,
                     )
 
-                    if agent_thought.event == QueueEvent.AGENT_MESSAGE:
+                    if app_config["long_term_memory"]["enable"]:
+                        new_summary = self.summary(
+                            message.query,
+                            agent_thought.answer,
+                            conversation.summary
+                        )
                         self.update(
-                            message,
-                            message=agent_thought.message,
-                            message_token_count=agent_thought.message_token_count,
-                            message_unit_price=agent_thought.message_unit_price,
-                            message_price_unit=agent_thought.message_price_unit,
-                            answer=agent_thought.answer,
-                            answer_token_count=agent_thought.answer_token_count,
-                            answer_unit_price=agent_thought.answer_unit_price,
-                            answer_price_unit=agent_thought.answer_price_unit,
-                            total_token_count=agent_thought.total_token_count,
-                            total_price=agent_thought.total_price,
-                            latency=latency,
+                            conversation,
+                            summary=new_summary,
                         )
 
-                        if app_config["long_term_memory"]["enable"]:
-                            new_summary = self.summary(
-                                message.query,
-                                agent_thought.answer,
-                                conversation.summary
-                            )
-                            self.update(
-                                conversation,
-                                summary=new_summary,
-                            )
-
-                        if conversation.is_new:
-                            new_conversation_name = self.generate_conversation_name(message.query)
-                            self.update(
-                                conversation,
-                                name=new_conversation_name,
-                            )
-
-                    if agent_thought.event in [QueueEvent.TIMEOUT, QueueEvent.STOP, QueueEvent.ERROR]:
+                    if conversation.is_new:
+                        new_conversation_name = self.generate_conversation_name(message.query)
                         self.update(
-                            message,
-                            status=agent_thought.event,
-                            error=agent_thought.observation
+                            conversation,
+                            name=new_conversation_name,
                         )
-                        break
+
+                if agent_thought.event in [QueueEvent.TIMEOUT, QueueEvent.STOP, QueueEvent.ERROR]:
+                    self.update(
+                        message,
+                        status=agent_thought.event,
+                        error=agent_thought.observation
+                    )
+                    break
