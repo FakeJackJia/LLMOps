@@ -223,16 +223,49 @@ class WebAppService(BaseService):
         filters = []
         if req.created_at.data is not None:
             created_at_datetime = datetime.fromtimestamp(req.created_at.data)
-            filters.append(Message.created_at <= created_at_datetime)
+            filters.append(Message.created_at >= created_at_datetime)
 
         messages = paginator.paginate(
             self.db.session.query(Message).filter(
                 Message.conversation_id == conversation_id,
                 Message.status.in_([MessageStatus.STOP, MessageStatus.NORMAL]),
                 Message.answer != "",
-                Message.is_deleted == False,
+                ~Message.is_deleted,
                 *filters
             ).order_by(desc("created_at"))
         )
 
         return messages, paginator
+
+    def get_message(self, message_id: UUID, account: Account) -> Message:
+        """获取指定消息"""
+        message = self.get(Message, message_id)
+
+        if not message or message.created_by != account.id or message.is_deleted:
+            raise NotFoundException("该消息不存在")
+
+        return message
+
+    def delete_conversation(self, conversation_id: UUID, account: Account) -> Conversation:
+        """删除指定会话"""
+        conversation = self.get_conversation(conversation_id, account)
+        self.update(conversation, is_deleted=True)
+        return conversation
+
+    def delete_message(self, conversation_id: UUID, message_id: UUID, account: Account) -> Message:
+        """删除指定消息"""
+        conversation = self.get_conversation(conversation_id, account)
+        message = self.get_message(message_id, account)
+
+        if conversation.id != message.conversation_id:
+            raise NotFoundException("该消息不存在")
+
+        self.update(message, is_deleted=True)
+        return message
+
+    def update_conversation(self, conversation_id: UUID, account: Account, **kwargs) -> Conversation:
+        """更新指定会话"""
+        conversation = self.get_conversation(conversation_id, account)
+
+        self.update(conversation, **kwargs)
+        return conversation

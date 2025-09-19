@@ -175,11 +175,16 @@ class Router:
         bp.add_url_rule("/analysis/<uuid:app_id>", view_func=self.analysis_handler.get_app_analysis)
 
         # WebApp模块
-        bp.add_url_rule("/web-apps/<string:token>/", view_func=self.web_handler.get_web_app)
+        bp.add_url_rule("/web-apps/<string:token>", view_func=self.web_handler.get_web_app)
         bp.add_url_rule("/web-apps/<string:token>/chat", methods=["POST"], view_func=self.web_handler.web_app_chat)
         bp.add_url_rule("/web-apps/<string:token>/chat/<uuid:task_id>/stop", methods=["POST"], view_func=self.web_handler.stop_web_app_chat)
         bp.add_url_rule("/web-apps/<string:token>/conversations", view_func=self.web_handler.get_conversations)
         bp.add_url_rule("/conversations/<uuid:conversation_id>/messages", view_func=self.web_handler.get_conversation_messages_with_page)
+        bp.add_url_rule("/conversations/<uuid:conversation_id>/delete", methods=["POST"], view_func=self.web_handler.delete_conversation)
+        bp.add_url_rule("/conversations/<uuid:conversation_id>/messages/<uuid:message_id>/delete", methods=["POST"], view_func=self.web_handler.delete_message)
+        bp.add_url_rule("/conversations/<uuid:conversation_id>/name", view_func=self.web_handler.get_conversation_name)
+        bp.add_url_rule("/conversations/<uuid:conversation_id>/name", methods=["POST"], view_func=self.web_handler.update_conversation_name)
+        bp.add_url_rule("/conversations/<uuid:conversation_id>/is-pinned", methods=["POST"], view_func=self.web_handler.update_conversation_is_pinned)
 
         # 在应用上去注册蓝图
         app.register_blueprint(bp)

@@ -12,6 +12,8 @@ from internal.schema.web_app_schema import (
     GetConversationsResp,
     GetConversationMessagesWithPageReq,
     GetConversationMessagesWithPageResp,
+    UpdateConversationNameReq,
+    UpdateConversationIsPinnedReq
 )
 from internal.service import WebAppService
 
@@ -75,3 +77,41 @@ class WebAppHandler:
 
         resp = GetConversationMessagesWithPageResp(many=True)
         return success_json(PageModel(list=resp.dump(messages), paginator=paginator))
+
+    @login_required
+    def delete_conversation(self, conversation_id: UUID):
+        """删除指定会话"""
+        self.web_app_service.delete_conversation(conversation_id, current_user)
+        return success_message("删除会话成功")
+
+    @login_required
+    def delete_message(self, conversation_id: UUID, message_id: UUID):
+        """删除指定会话下的消息"""
+        self.web_app_service.delete_message(conversation_id, message_id, current_user)
+        return success_message("删除消息成功")
+
+    @login_required
+    def get_conversation_name(self, conversation_id: UUID):
+        """获取指定会话名字"""
+        conversation = self.web_app_service.get_conversation(conversation_id, current_user)
+        return success_json({"name": conversation.name})
+
+    @login_required
+    def update_conversation_name(self, conversation_id: UUID):
+        """更新指定会话名字"""
+        req = UpdateConversationNameReq()
+        if not req.validate():
+            return validate_error_json(req.errors)
+
+        self.web_app_service.update_conversation(conversation_id, current_user, name=req.name.data)
+        return success_message("更新会话名字成功")
+
+    @login_required
+    def update_conversation_is_pinned(self, conversation_id: UUID):
+        """修改会话置顶状态"""
+        req = UpdateConversationIsPinnedReq()
+        if not req.validate():
+            return validate_error_json(req.errors)
+
+        self.web_app_service.update_conversation(conversation_id, current_user, is_pinned=req.is_pinned.data)
+        return success_message("更新会话置顶状态成功")

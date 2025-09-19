@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, BooleanField, IntegerField
-from wtforms.validators import DataRequired, Optional, UUID, NumberRange
+from wtforms.validators import DataRequired, Optional, UUID, NumberRange, Length
 from marshmallow import Schema, pre_dump, fields
 
 from internal.model import App, Conversation, Message
@@ -28,6 +28,17 @@ class GetConversationMessagesWithPageReq(PaginatorReq):
         Optional(),
         NumberRange(min=0, message="created_at游标最小值为0")
     ])
+
+class UpdateConversationNameReq(FlaskForm):
+    """更新指定会话名字数据请求结构体"""
+    name = StringField("name", validators=[
+        DataRequired(message="会话名字必须不能为空"),
+        Length(max=100, message="会话名字不能超过100个字符")
+    ])
+
+class UpdateConversationIsPinnedReq(FlaskForm):
+    """更新指定会话置顶状态请求结构体"""
+    is_pinned = BooleanField("is_pinned", default=False)
 
 class GetConversationMessagesWithPageResp(Schema):
     """获取指定会话消息列表分页数据响应结构"""
