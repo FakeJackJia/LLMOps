@@ -1,4 +1,5 @@
 python-dotenv~=1.1.0
+gevent~=25.9.1
 injector~=0.22.0
 redis~=4.6.0
 requests~=2.32.4
