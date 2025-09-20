@@ -10,7 +10,7 @@ It provides **visual orchestration, single-agent workflows, knowledge base retri
 - **Visual Workflow Orchestration**  
   Build and manage agent workflows using LangGraph, with streaming SSE outputs.  
 
-- **Single & Multi-Agent Support**  
+- **Single-Agent Support**  
   Create function-calling agents that can reason, call tools, and collaborate in workflows.  
 
 - **Knowledge Base & RAG**  
@@ -25,12 +25,11 @@ It provides **visual orchestration, single-agent workflows, knowledge base retri
   - Custom tools via OpenAPI schema → auto Pydantic parameter model generation  
 
 - **Multi-LLM Integration**  
-  Unified interface for OpenAI, Tongyi, Ollama, Moonshot and more, with token & cost tracking.  
+  Unified interface for OpenAI, Tongyi, Ollama, and more, with token & cost tracking.  
 
 - **Deployment & Security**  
   - JWT & GitHub OAuth authentication, API key management  
   - Draft/Publish app versioning & rollback  
-  - Docker-based one-click deployment  
 
 ---
 
