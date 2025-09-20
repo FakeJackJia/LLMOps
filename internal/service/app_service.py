@@ -188,9 +188,7 @@ class AppService(BaseService):
 
         draft_app_config_record = app.draft_app_config
         self.update(
-            draft_app_config_record,
-            # todo: 由于目前使用server_onupdate, 所以该字段暂时需要手动传递
-            updated_at=datetime.now(),
+            draft_app_config_record
             **draft_app_config,
         )
 
@@ -221,8 +219,6 @@ class AppService(BaseService):
             long_term_memory=draft_app_config["long_term_memory"],
             opening_statement=draft_app_config["opening_statement"],
             opening_questions=draft_app_config["opening_questions"],
-            speech_to_text=draft_app_config["speech_to_text"],
-            text_to_speech=draft_app_config["text_to_speech"],
             suggested_after_answer=draft_app_config["suggested_after_answer"],
             review_config=draft_app_config["review_config"],
         )
@@ -316,8 +312,6 @@ class AppService(BaseService):
         draft_app_config_record = app.draft_app_config
         self.update(
             draft_app_config_record,
-            # todo: 更新时间补丁信息
-            updated_at=datetime.now(),
             **draft_app_config_dict
         )
 
@@ -531,7 +525,7 @@ class AppService(BaseService):
             "model_config", "dialog_round", "preset_prompt",
             "tools", "workflows", "datasets", "retrieval_config",
             "long_term_memory", "opening_statement", "opening_questions",
-            "speech_to_text", "text_to_speech", "suggested_after_answer", "review_config",
+            "suggested_after_answer", "review_config",
         ]
 
         if (
@@ -744,31 +738,6 @@ class AppService(BaseService):
             for opening_question in opening_questions:
                 if not isinstance(opening_question, str):
                     raise ValidateErrorException("开场建议问题必须是字符串")
-
-        if "speech_to_text" in draft_app_config:
-            speech_to_text = draft_app_config["speech_to_text"]
-
-            if not speech_to_text or not isinstance(speech_to_text, dict):
-                raise ValidateErrorException("语音转文本设置格式错误")
-            if (
-                    set(speech_to_text.keys()) != {"enable"}
-                    or not isinstance(speech_to_text["enable"], bool)
-            ):
-                raise ValidateErrorException("语音转文本设置格式错误")
-
-        if "text_to_speech" in draft_app_config:
-            text_to_speech = draft_app_config["text_to_speech"]
-
-            if not isinstance(text_to_speech, dict):
-                raise ValidateErrorException("文本转语音设置格式错误")
-            if (
-                    set(text_to_speech.keys()) != {"enable", "voice", "auto_play"}
-                    or not isinstance(text_to_speech["enable"], bool)
-                    # todo:等待多模态Agent实现时添加音色
-                    or text_to_speech["voice"] not in ["echo"]
-                    or not isinstance(text_to_speech["auto_play"], bool)
-            ):
-                raise ValidateErrorException("文本转语音设置格式错误")
 
         if "suggested_after_answer" in draft_app_config:
             suggested_after_answer = draft_app_config["suggested_after_answer"]

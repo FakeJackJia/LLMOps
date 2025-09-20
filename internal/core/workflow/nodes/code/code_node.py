@@ -22,7 +22,7 @@ class CodeNode(BaseNode):
         start_at = time.perf_counter()
         inputs_dict = extract_variables_from_state(self.node_data.inputs, state)
 
-        # todo: 执行Python代码, 该方法目前有风险, 需迁移至沙箱里
+        # warning: 执行Python代码, 该方法目前有风险, 需迁移至沙箱里
         result = self._execute_function(self.node_data.code, params=inputs_dict)
 
         if not isinstance(result, dict):

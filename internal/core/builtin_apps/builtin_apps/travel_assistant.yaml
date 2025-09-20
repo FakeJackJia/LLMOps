@@ -30,12 +30,6 @@ opening_questions:
   - "您有几天的行程计划？"
   - "请问您打算选择什么样的交通方式？"
   - "您对那些旅游兴趣点感兴趣？"
-speech_to_text:
-  enable: false
-text_to_speech:
-  enable: false
-  voice: "echo"
-  auto_play: false
 suggested_after_answer:
   enable: true
 review_config:

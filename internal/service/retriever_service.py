@@ -85,7 +85,6 @@ class RetrievalService(BaseService):
                 dataset_id=lc_document.metadata["dataset_id"],
                 query=query,
                 source=retrieval_source,
-                # todo: 等待APP配置模块完成后进行调整
                 source_app_id=None,
                 created_by=account_id
             )

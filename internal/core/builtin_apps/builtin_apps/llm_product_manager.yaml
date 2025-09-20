@@ -29,12 +29,6 @@ opening_statement: "我是一个高级产品经理，对于市场上各类软件
 opening_questions:
   - "如何进行产品宣传和营销"
   - "我需要了解用户心理学和用户行为学的基本知识"
-speech_to_text:
-  enable: false
-text_to_speech:
-  enable: false
-  voice: "echo"
-  auto_play: false
 suggested_after_answer:
   enable: true
 review_config:

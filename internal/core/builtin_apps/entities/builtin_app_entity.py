@@ -17,8 +17,6 @@ class BuiltinAppEntity(BaseModel):
     long_term_memory: dict[str, Any] = Field(default_factory=lambda: DEFAULT_APP_CONFIG.get("long_term_memory"))
     opening_statement: str = Field(default=DEFAULT_APP_CONFIG.get("opening_statement"))
     opening_questions: list[str] = Field(default_factory=lambda: DEFAULT_APP_CONFIG.get("opening_questions"))
-    speech_to_text: dict[str, Any] = Field(default_factory=lambda: DEFAULT_APP_CONFIG.get("speech_to_text"))
-    text_to_speech: dict[str, Any] = Field(default_factory=lambda: DEFAULT_APP_CONFIG.get("text_to_speech"))
     suggested_after_answer: dict[str, Any] = Field(
         default_factory=lambda: DEFAULT_APP_CONFIG.get("suggested_after_answer"),
     )

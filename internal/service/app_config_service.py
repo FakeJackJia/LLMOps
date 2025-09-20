@@ -166,8 +166,6 @@ class AppConfigService(BaseService):
             "long_term_memory": app_config.long_term_memory,
             "opening_statement": app_config.opening_statement,
             "opening_questions": app_config.opening_questions,
-            "speech_to_text": app_config.speech_to_text,
-            "text_to_speech": app_config.text_to_speech,
             "suggested_after_answer": app_config.suggested_after_answer,
             "review_config": app_config.review_config,
             "updated_at": datetime_to_timestamp(app_config.updated_at),

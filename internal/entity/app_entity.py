@@ -37,14 +37,6 @@ DEFAULT_APP_CONFIG = {
     },
     "opening_statement": "",
     "opening_questions": [],
-    "speech_to_text": {
-        "enable": False,
-    },
-    "text_to_speech": {
-        "enable": False,
-        "voice": "echo",
-        "auto_play": False,
-    },
     "suggested_after_answer": {
         "enable": True,
     },
